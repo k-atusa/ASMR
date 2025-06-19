@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Radio Streaming Service</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script>
+    // Dark mode helpers
+    function setDarkMode(enabled) {
+      if (enabled) {
+        document.body.classList.add('dark');
+      } else {
+        document.body.classList.remove('dark');
+      }
+    }
+    function getCookie(name) {
+      const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+      return v ? v[2] : null;
+    }
+    function setCookie(name, value, days) {
+      let expires = '';
+      if (days) {
+        const d = new Date();
+        d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+        expires = '; expires=' + d.toUTCString();
+      }
+      document.cookie = name + '=' + value + expires + '; path=/';
+    }
+    function updateDarkModeBySystem() {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setDarkMode(prefersDark);
+    }
+    function listenToSystemThemeChange(callback) {
+      const mql = window.matchMedia('(prefers-color-scheme: dark)');
+      if (mql.addEventListener) {
+        mql.addEventListener('change', callback);
+      } else if (mql.addListener) {
+        mql.addListener(callback);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+      const darkCookie = getCookie('darkmode');
+      if (darkCookie === '1') setDarkMode(true);
+      else if (darkCookie === '0') setDarkMode(false);
+      else updateDarkModeBySystem();
+      listenToSystemThemeChange(e => {
+        setDarkMode(e.matches);
+      });
+      document.getElementById('dark-toggle').addEventListener('click', function () {
+        const isDark = document.body.classList.toggle('dark');
+        setCookie('darkmode', isDark ? '1' : '0', 365);
+      });
+    });
+  </script>
+</head>
+
+<body class="bg-gradient-to-br from-blue-200 to-purple-300 min-h-screen flex items-center justify-center">
+  <button id="dark-toggle"
+    class="absolute top-6 right-6 z-10 px-4 py-2 rounded-xl bg-white/40 hover:bg-white/60 shadow-md text-gray-700 font-semibold dark:text-gray-200 dark:bg-white/20">🌙/☀️</button>
+  <div class="backdrop-blur-lg bg-white/30 rounded-3xl shadow-2xl p-10 w-full max-w-2xl">
+    <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">Radio Channels</h1>
+    <div class="grid grid-cols-1 gap-6">
+      <a href="/player.html?channel=chill"
+        class="block p-6 rounded-2xl bg-white/40 hover:bg-white/60 transition shadow-lg backdrop-blur-md">
+        <div class="flex items-center">
+          <div
+            class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-400 to-purple-400 flex items-center justify-center mr-4 shadow-md">
+            <span class="text-white text-xl font-bold">C</span>
+          </div>
+          <div>
+            <div class="text-lg font-semibold text-gray-900">Chill Vibes</div>
+            <div class="text-gray-600 text-sm">Relax with calm music</div>
+          </div>
+        </div>
+      </a>
+      <a href="/player.html?channel=focus"
+        class="block p-6 rounded-2xl bg-white/40 hover:bg-white/60 transition shadow-lg backdrop-blur-md">
+        <div class="flex items-center">
+          <div
+            class="w-12 h-12 rounded-full bg-gradient-to-tr from-green-400 to-blue-400 flex items-center justify-center mr-4 shadow-md">
+            <span class="text-white text-xl font-bold">F</span>
+          </div>
+          <div>
+            <div class="text-lg font-semibold text-gray-900">Focus Beats</div>
+            <div class="text-gray-600 text-sm">Beats and sounds for concentration</div>
+          </div>
+        </div>
+      </a>
+      <a href="/player.html?channel=nature"
+        class="block p-6 rounded-2xl bg-white/40 hover:bg-white/60 transition shadow-lg backdrop-blur-md">
+        <div class="flex items-center">
+          <div
+            class="w-12 h-12 rounded-full bg-gradient-to-tr from-green-300 to-yellow-300 flex items-center justify-center mr-4 shadow-md">
+            <span class="text-white text-xl font-bold">N</span>
+          </div>
+          <div>
+            <div class="text-lg font-semibold text-gray-900">Nature Sounds</div>
+            <div class="text-gray-600 text-sm">Healing with the sounds of nature</div>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+</body>
+
+</html>
