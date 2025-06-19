@@ -7,44 +7,75 @@
     <title>ASMR Radio Player</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script>
-        // Extract channel name from query string
         function getChannel() {
             const params = new URLSearchParams(window.location.search);
             return params.get('channel') || 'chill';
         }
-        // Extract current track index
         function getIdx() {
             const params = new URLSearchParams(window.location.search);
             return params.get('idx') || '0';
         }
         document.addEventListener('DOMContentLoaded', function () {
             const channel = getChannel();
-            const idx = getIdx();
             const channelNames = {
                 chill: 'Chill Vibes',
                 focus: 'Focus Beats',
                 nature: 'Nature Sounds',
             };
             document.getElementById('channel-title').textContent = channelNames[channel] || channel;
-            const audio = document.getElementById('audio-player');
-            audio.src = `/stream/${channel}?idx=${idx}`;
-            // Auto play next track when current ends
-            audio.addEventListener('ended', async function () {
-                try {
-                    const resp = await fetch(`/stream/${channel}?idx=${idx}`, { method: 'HEAD' });
-                    const next = resp.headers.get('X-Next-Track');
-                    if (next) {
-                        const url = new URL(window.location.href);
-                        url.searchParams.set('idx', (parseInt(idx, 10) + 1) % 99);
-                        window.location.href = url.toString();
+            document.getElementById('audio-player').style.display = 'none';
+            const socket = io();
+            socket.emit('join-channel', channel);
+            let audioCtx = null;
+            let audioBufferQueue = [];
+            let playing = false;
+            const SAMPLES_PER_CHUNK = 4096 * 4;
+            let pcmBuffer = new Int16Array(0);
+            function concatInt16(a, b) {
+                const c = new Int16Array(a.length + b.length);
+                c.set(a, 0);
+                c.set(b, a.length);
+                return c;
+            }
+            function playQueue() {
+                if (!audioCtx || playing || audioBufferQueue.length === 0) return;
+                playing = true;
+                const floatBuf = audioBufferQueue.shift();
+                const audioBuffer = audioCtx.createBuffer(2, floatBuf.length / 2, 44100);
+                audioBuffer.getChannelData(0).set(floatBuf.filter((_, i) => i % 2 === 0));
+                audioBuffer.getChannelData(1).set(floatBuf.filter((_, i) => i % 2 === 1));
+                const source = audioCtx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioCtx.destination);
+                source.onended = () => {
+                    playing = false;
+                    playQueue();
+                };
+                source.start();
+            }
+            socket.on('audio', chunk => {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const arr = new Int16Array(chunk);
+                pcmBuffer = concatInt16(pcmBuffer, arr);
+                while (pcmBuffer.length >= SAMPLES_PER_CHUNK) {
+                    const slice = pcmBuffer.slice(0, SAMPLES_PER_CHUNK);
+                    pcmBuffer = pcmBuffer.slice(SAMPLES_PER_CHUNK);
+                    const floatBuf = new Float32Array(slice.length);
+                    for (let i = 0; i < slice.length; i++) {
+                        floatBuf[i] = slice[i] / 32768;
                     }
-                } catch (e) {
-                    // On failure, do nothing
+                    audioBufferQueue.push(floatBuf);
+                    playQueue();
                 }
             });
+            window.addEventListener('beforeunload', () => {
+                socket.emit('leave-channel', channel);
+            });
         });
-        // Dark mode helpers
         function setDarkMode(enabled) {
             if (enabled) {
                 document.body.classList.add('dark');
@@ -78,16 +109,13 @@
             }
         }
         document.addEventListener('DOMContentLoaded', function () {
-            // 쿠키 우선, 없으면 시스템 테마
             const darkCookie = getCookie('darkmode');
             if (darkCookie === '1') setDarkMode(true);
             else if (darkCookie === '0') setDarkMode(false);
             else updateDarkModeBySystem();
-            // 시스템 테마 변경 감지
             listenToSystemThemeChange(e => {
-                setDarkMode(e.matches); // 시스템 테마로 즉시 변경
+                setDarkMode(e.matches);
             });
-            // 다크모드 토글 버튼
             document.getElementById('dark-toggle').addEventListener('click', function () {
                 const isDark = document.body.classList.toggle('dark');
                 setCookie('darkmode', isDark ? '1' : '0', 365);
