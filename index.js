@@ -12,7 +12,7 @@ app.use(express.static('public'));
 // Channel list (hardcoded, can be dynamic)
 const CHANNELS = [
     { id: 'chill', name: 'Chill Vibes', desc: 'Relax with calm music' },
-    { id: 'focus', name: 'Focus Beats', desc: 'Beats and sounds for concentration' },
+    { id: 'emotional', name: 'Emotional Pop', desc: 'Mellow Pop Western Sunday Afternoon' },
     { id: 'nature', name: 'Nature Sounds', desc: 'Healing with the sounds of nature' },
 ];
 
