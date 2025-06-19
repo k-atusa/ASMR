@@ -5,7 +5,7 @@
 ### 1. Build the Image
 
 ```bash
-docker build -t asmr-radio .
+docker build -t asmr .
 ```
 
 ### 2. Run the Container
@@ -13,7 +13,7 @@ docker build -t asmr-radio .
 ```bash
 docker run -p 3001:3001 \
   -v $(pwd)/channels:/app/channels \
-  asmr-radio
+  asmr
 ```
 
 - `-p 3001:3001`: Maps port 3001 of your host to port 3001 in the container.
