@@ -2,141 +2,141 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Radio Streaming Service</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="/style.css">
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <script>
-        function getChannel() {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('channel') || 'chill';
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Radio Streaming Service</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    function getChannel() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('channel') || 'chill';
+    }
+    function getIdx() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('idx') || '0';
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+      const channel = getChannel();
+      const channelNames = {
+        chill: 'Chill Vibes',
+        focus: 'Focus Beats',
+        nature: 'Nature Sounds',
+      };
+      document.getElementById('channel-title').textContent = channelNames[channel] || channel;
+      document.getElementById('audio-player').style.display = 'none';
+      const socket = io();
+      socket.emit('join-channel', channel);
+      let audioCtx = null;
+      let audioBufferQueue = [];
+      let playing = false;
+      const SAMPLES_PER_CHUNK = 4096 * 4;
+      let pcmBuffer = new Int16Array(0);
+      function concatInt16(a, b) {
+        const c = new Int16Array(a.length + b.length);
+        c.set(a, 0);
+        c.set(b, a.length);
+        return c;
+      }
+      function playQueue() {
+        if (!audioCtx || playing || audioBufferQueue.length === 0) return;
+        playing = true;
+        const floatBuf = audioBufferQueue.shift();
+        const audioBuffer = audioCtx.createBuffer(2, floatBuf.length / 2, 44100);
+        audioBuffer.getChannelData(0).set(floatBuf.filter((_, i) => i % 2 === 0));
+        audioBuffer.getChannelData(1).set(floatBuf.filter((_, i) => i % 2 === 1));
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+        source.onended = () => {
+          playing = false;
+          playQueue();
+        };
+        source.start();
+      }
+      socket.on('audio', chunk => {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         }
-        function getIdx() {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('idx') || '0';
+        const arr = new Int16Array(chunk);
+        pcmBuffer = concatInt16(pcmBuffer, arr);
+        while (pcmBuffer.length >= SAMPLES_PER_CHUNK) {
+          const slice = pcmBuffer.slice(0, SAMPLES_PER_CHUNK);
+          pcmBuffer = pcmBuffer.slice(SAMPLES_PER_CHUNK);
+          const floatBuf = new Float32Array(slice.length);
+          for (let i = 0; i < slice.length; i++) {
+            floatBuf[i] = slice[i] / 32768;
+          }
+          audioBufferQueue.push(floatBuf);
+          playQueue();
         }
-        document.addEventListener('DOMContentLoaded', function () {
-            const channel = getChannel();
-            const channelNames = {
-                chill: 'Chill Vibes',
-                focus: 'Focus Beats',
-                nature: 'Nature Sounds',
-            };
-            document.getElementById('channel-title').textContent = channelNames[channel] || channel;
-            document.getElementById('audio-player').style.display = 'none';
-            const socket = io();
-            socket.emit('join-channel', channel);
-            let audioCtx = null;
-            let audioBufferQueue = [];
-            let playing = false;
-            const SAMPLES_PER_CHUNK = 4096 * 4;
-            let pcmBuffer = new Int16Array(0);
-            function concatInt16(a, b) {
-                const c = new Int16Array(a.length + b.length);
-                c.set(a, 0);
-                c.set(b, a.length);
-                return c;
-            }
-            function playQueue() {
-                if (!audioCtx || playing || audioBufferQueue.length === 0) return;
-                playing = true;
-                const floatBuf = audioBufferQueue.shift();
-                const audioBuffer = audioCtx.createBuffer(2, floatBuf.length / 2, 44100);
-                audioBuffer.getChannelData(0).set(floatBuf.filter((_, i) => i % 2 === 0));
-                audioBuffer.getChannelData(1).set(floatBuf.filter((_, i) => i % 2 === 1));
-                const source = audioCtx.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(audioCtx.destination);
-                source.onended = () => {
-                    playing = false;
-                    playQueue();
-                };
-                source.start();
-            }
-            socket.on('audio', chunk => {
-                if (!audioCtx) {
-                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                }
-                const arr = new Int16Array(chunk);
-                pcmBuffer = concatInt16(pcmBuffer, arr);
-                while (pcmBuffer.length >= SAMPLES_PER_CHUNK) {
-                    const slice = pcmBuffer.slice(0, SAMPLES_PER_CHUNK);
-                    pcmBuffer = pcmBuffer.slice(SAMPLES_PER_CHUNK);
-                    const floatBuf = new Float32Array(slice.length);
-                    for (let i = 0; i < slice.length; i++) {
-                        floatBuf[i] = slice[i] / 32768;
-                    }
-                    audioBufferQueue.push(floatBuf);
-                    playQueue();
-                }
-            });
-            window.addEventListener('beforeunload', () => {
-                socket.emit('leave-channel', channel);
-            });
-        });
-        function setDarkMode(enabled) {
-            if (enabled) {
-                document.body.classList.add('dark');
-            } else {
-                document.body.classList.remove('dark');
-            }
-        }
-        function getCookie(name) {
-            const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
-            return v ? v[2] : null;
-        }
-        function setCookie(name, value, days) {
-            let expires = '';
-            if (days) {
-                const d = new Date();
-                d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
-                expires = '; expires=' + d.toUTCString();
-            }
-            document.cookie = name + '=' + value + expires + '; path=/';
-        }
-        function updateDarkModeBySystem() {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            setDarkMode(prefersDark);
-        }
-        function listenToSystemThemeChange(callback) {
-            const mql = window.matchMedia('(prefers-color-scheme: dark)');
-            if (mql.addEventListener) {
-                mql.addEventListener('change', callback);
-            } else if (mql.addListener) {
-                mql.addListener(callback);
-            }
-        }
-        document.addEventListener('DOMContentLoaded', function () {
-            const darkCookie = getCookie('darkmode');
-            if (darkCookie === '1') setDarkMode(true);
-            else if (darkCookie === '0') setDarkMode(false);
-            else updateDarkModeBySystem();
-            listenToSystemThemeChange(e => {
-                setDarkMode(e.matches);
-            });
-            document.getElementById('dark-toggle').addEventListener('click', function () {
-                const isDark = document.body.classList.toggle('dark');
-                setCookie('darkmode', isDark ? '1' : '0', 365);
-            });
-        });
-    </script>
+      });
+      window.addEventListener('beforeunload', () => {
+        socket.emit('leave-channel', channel);
+      });
+    });
+    function setDarkMode(enabled) {
+      if (enabled) {
+        document.body.classList.add('dark');
+      } else {
+        document.body.classList.remove('dark');
+      }
+    }
+    function getCookie(name) {
+      const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+      return v ? v[2] : null;
+    }
+    function setCookie(name, value, days) {
+      let expires = '';
+      if (days) {
+        const d = new Date();
+        d.setTime(d.getTime() + days * 24 * 60 * 60 * 1000);
+        expires = '; expires=' + d.toUTCString();
+      }
+      document.cookie = name + '=' + value + expires + '; path=/';
+    }
+    function updateDarkModeBySystem() {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setDarkMode(prefersDark);
+    }
+    function listenToSystemThemeChange(callback) {
+      const mql = window.matchMedia('(prefers-color-scheme: dark)');
+      if (mql.addEventListener) {
+        mql.addEventListener('change', callback);
+      } else if (mql.addListener) {
+        mql.addListener(callback);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+      const darkCookie = getCookie('darkmode');
+      if (darkCookie === '1') setDarkMode(true);
+      else if (darkCookie === '0') setDarkMode(false);
+      else updateDarkModeBySystem();
+      listenToSystemThemeChange(e => {
+        setDarkMode(e.matches);
+      });
+      document.getElementById('dark-toggle').addEventListener('click', function () {
+        const isDark = document.body.classList.toggle('dark');
+        setCookie('darkmode', isDark ? '1' : '0', 365);
+      });
+    });
+  </script>
 </head>
 
 <body class="bg-gradient-to-br from-blue-200 to-purple-300 min-h-screen flex items-center justify-center">
-    <button id="dark-toggle"
-        class="absolute top-6 right-6 z-10 px-4 py-2 rounded-xl bg-white/40 hover:bg-white/60 shadow-md text-gray-700 font-semibold dark:text-gray-200 dark:bg-white/20">🌙/☀️</button>
-    <div class="backdrop-blur-lg bg-white/30 rounded-3xl shadow-2xl p-10 w-full max-w-md flex flex-col items-center">
-        <button onclick="window.history.back()"
-            class="mb-6 px-4 py-2 rounded-xl bg-white/40 hover:bg-white/60 shadow-md text-gray-700 font-semibold">← Back
-            to Channels</button>
-        <h2 id="channel-title" class="text-2xl font-bold mb-8 text-gray-800">Channel Name</h2>
-        <audio id="audio-player" controls autoplay class="w-full rounded-xl shadow-lg">
-            <source src="" type="audio/mpeg">
-            Your browser does not support the audio tag.
-        </audio>
-    </div>
+  <button id="dark-toggle"
+    class="absolute top-6 right-6 z-10 px-4 py-2 rounded-xl bg-white/40 hover:bg-white/60 shadow-md text-gray-700 font-semibold dark:text-gray-200 dark:bg-white/20">🌙/☀️</button>
+  <div class="backdrop-blur-lg bg-white/30 rounded-3xl shadow-2xl p-10 w-full max-w-md flex flex-col items-center">
+    <button onclick="window.history.back()"
+      class="mb-6 px-4 py-2 rounded-xl bg-white/40 hover:bg-white/60 shadow-md text-gray-700 font-semibold">← Back
+      to Channels</button>
+    <h2 id="channel-title" class="text-2xl font-bold mb-8 text-gray-800">Channel Name</h2>
+    <audio id="audio-player" controls autoplay class="w-full rounded-xl shadow-lg">
+      <source src="" type="audio/mpeg">
+      Your browser does not support the audio tag.
+    </audio>
+  </div>
 </body>
 
 </html>
