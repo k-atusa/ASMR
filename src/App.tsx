@@ -135,7 +135,7 @@ const formatClockTime = (date: Date): string =>
     hour12: false,
   }).format(date)
 
-function App() {
+const App = () => {
   const [status, setStatus] = useState<StationStatus | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
