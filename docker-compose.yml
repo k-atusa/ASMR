@@ -1,0 +1,12 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ICECAST_BASE_URL: ${ICECAST_BASE_URL}
+    environment:
+      ICECAST_BASE_URL: ${ICECAST_BASE_URL}
+    ports:
+      - "4173:80"
+    restart: unless-stopped
