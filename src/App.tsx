@@ -135,12 +135,30 @@ const formatClockTime = (date: Date): string =>
     hour12: false,
   }).format(date)
 
+const formatPlaybackTime = (seconds: number): string => {
+  const safeSeconds = Math.max(0, Math.floor(seconds))
+  const hours = Math.floor(safeSeconds / 3600)
+  const minutes = Math.floor((safeSeconds % 3600) / 60)
+  const remainingSeconds = safeSeconds % 60
+
+  const mm = minutes.toString().padStart(2, '0')
+  const ss = remainingSeconds.toString().padStart(2, '0')
+
+  if (hours > 0) {
+    return `${hours}:${mm}:${ss}`
+  }
+
+  return `${minutes}:${ss}`
+}
+
 const App = () => {
   const [status, setStatus] = useState<StationStatus | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [liveClock, setLiveClock] = useState(() => Date.now())
+  const [playbackSeconds, setPlaybackSeconds] = useState(0)
   const audioRef = useRef<HTMLAudioElement>(null)
   const hasLoadedOnce = useRef(false)
 
@@ -188,7 +206,7 @@ const App = () => {
 
     const intervalId = window.setInterval(() => {
       refreshStatus()
-    }, 45000)
+    }, 10000)
 
     return () => {
       controller.abort()
@@ -197,12 +215,23 @@ const App = () => {
   }, [refreshStatus])
 
   useEffect(() => {
+    const tickId = window.setInterval(() => {
+      setLiveClock(Date.now())
+    }, 1000)
+
+    return () => {
+      window.clearInterval(tickId)
+    }
+  }, [])
+
+  useEffect(() => {
     const player = audioRef.current
     if (!player) return
 
     player.pause()
     player.load()
     setIsPlaying(false)
+    setPlaybackSeconds(0)
   }, [status?.listenUrl])
 
   const formattedStart = useMemo(() => {
@@ -213,7 +242,7 @@ const App = () => {
     return formatFullTimestamp(date)
   }, [status?.streamStartIso])
 
-  const liveDuration = useMemo(() => formatLiveDuration(status?.streamStartIso ?? null), [status?.streamStartIso])
+  const liveDuration = useMemo(() => formatLiveDuration(status?.streamStartIso ?? null), [status?.streamStartIso, liveClock])
 
   const updatedAtText = useMemo(() => {
     if (!lastUpdated) return 'Syncing data'
@@ -284,7 +313,7 @@ const App = () => {
             onClick={handleTogglePlayback}
             disabled={!status?.listenUrl || loading}
           >
-            {isPlaying ? 'Pause' : 'Play Live'}
+            {isPlaying ? `Pause (${formatPlaybackTime(playbackSeconds)})` : 'Play Live'}
           </button>
           <button className="secondary-control" onClick={handleManualRefresh} disabled={loading}>
             Refresh
@@ -299,6 +328,7 @@ const App = () => {
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onEnded={() => setIsPlaying(false)}
+          onTimeUpdate={(event) => setPlaybackSeconds(event.currentTarget.currentTime)}
         />
       </section>
 
