@@ -1,10 +1,6 @@
 services:
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        ICECAST_BASE_URL: ${ICECAST_BASE_URL}
+    image: d3vle0/asmr:latest
     environment:
       ICECAST_BASE_URL: ${ICECAST_BASE_URL}
     ports:

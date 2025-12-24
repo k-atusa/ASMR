@@ -15,7 +15,7 @@ COPY public ./public
 COPY src ./src
 
 RUN npm ci
-RUN test -n "$ICECAST_BASE_URL" && npm run build
+RUN npm run build
 
 FROM nginx:1.29.4-alpine AS runtime
 COPY --from=build /app/dist /usr/share/nginx/html
