@@ -1,8 +1,16 @@
 {
-  "name": "frontend",
+  "name": "asmr",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.0.0",
+  "description": "Icecast live monitor dashboard.",
   "type": "module",
+  "keywords": [
+    "icecast",
+    "radio",
+    "dashboard"
+  ],
+  "author": "D3vle0 <44903787+D3vle0@users.noreply.github.com>",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
