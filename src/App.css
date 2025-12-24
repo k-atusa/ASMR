@@ -125,6 +125,7 @@
   border: 1px solid transparent;
   font-size: 1rem;
   font-weight: 600;
+  font-family: 'Space Grotesk', 'Chivo Mono', 'Helvetica Neue', sans-serif;
   padding: 0.85rem 2.5rem;
   cursor: pointer;
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
