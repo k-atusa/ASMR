@@ -1,12 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 
+declare global {
+  interface Window {
+    __ICECAST_RUNTIME_CONFIG__?: {
+      ICECAST_BASE_URL?: string | null
+    }
+  }
+}
+
+const sanitizeBaseUrl = (value?: string | null): string => (value ? value.trim().replace(/\/+$/, '') : '')
+
+const resolveBaseUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const runtime = sanitizeBaseUrl(window.__ICECAST_RUNTIME_CONFIG__?.ICECAST_BASE_URL)
+    if (runtime) {
+      return runtime
+    }
+  }
+
+  return sanitizeBaseUrl(import.meta.env.ICECAST_BASE_URL)
+}
 const STATUS_URL = '/icecast-status'
 const STREAM_FALLBACK_URL = '/icecast-stream'
-const STREAM_DISPLAY_URL = (() => {
-  const base = import.meta.env.ICECAST_BASE_URL?.trim().replace(/\/+$/, '')
-  return base ? `${base}/stream` : ''
-})()
 
 type MaybeSource = {
   title?: string
@@ -26,7 +42,7 @@ type StationStatus = {
   streamStartIso: string | null
 }
 
-const resolveToUrl = (value: string): URL => {
+const resolveToUrl = (value: string): URL => { 
   if (/^https?:\/\//i.test(value)) {
     return new URL(value)
   }
@@ -152,6 +168,7 @@ const formatPlaybackTime = (seconds: number): string => {
 }
 
 const App = () => {
+  const [runtimeBaseUrl, setRuntimeBaseUrl] = useState(() => resolveBaseUrl())
   const [status, setStatus] = useState<StationStatus | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
@@ -161,6 +178,10 @@ const App = () => {
   const [playbackSeconds, setPlaybackSeconds] = useState(0)
   const audioRef = useRef<HTMLAudioElement>(null)
   const hasLoadedOnce = useRef(false)
+
+  useEffect(() => {
+    setRuntimeBaseUrl(resolveBaseUrl())
+  }, [])
 
   const refreshStatus = useCallback(async (signal?: AbortSignal) => {
     if (!hasLoadedOnce.current) {
@@ -243,6 +264,8 @@ const App = () => {
   }, [status?.streamStartIso])
 
   const liveDuration = useMemo(() => formatLiveDuration(status?.streamStartIso ?? null), [status?.streamStartIso, liveClock])
+
+  const streamDisplayUrl = useMemo(() => (runtimeBaseUrl ? `${runtimeBaseUrl}/stream` : ''), [runtimeBaseUrl])
 
   const updatedAtText = useMemo(() => {
     if (!lastUpdated) return 'Syncing data'
@@ -336,9 +359,9 @@ const App = () => {
         <div className="stat-grid">
           <article className="stat-card">
             <p className="stat-label">Stream URL</p>
-            {STREAM_DISPLAY_URL ? (
-              <a href={STREAM_DISPLAY_URL} target="_blank" rel="noreferrer" className="stat-value">
-                {STREAM_DISPLAY_URL}
+            {streamDisplayUrl ? (
+              <a href={streamDisplayUrl} target="_blank" rel="noreferrer" className="stat-value">
+                {streamDisplayUrl}
               </a>
             ) : (
               <p className="stat-value muted">Configure ICECAST_BASE_URL to show this link.</p>

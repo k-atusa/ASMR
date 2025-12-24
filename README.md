@@ -111,15 +111,15 @@ Once the stream is reachable, the ASMR frontend can proxy `/icecast-status` and 
 ## Running the ASMR Frontend (Docker Compose)
 
 1. **Environment variable**
-	 - Duplicate `.env.example` as `.env` and set `ICECAST_BASE_URL` to the public origin of your Icecast server (e.g., `https://radio.example.com:7000`). This value drives both the Vite dev proxy and the production runtime.
+	 - Duplicate `.env.example` as `.env` for local development, and set `ICECAST_BASE_URL` to the public origin of your Icecast server (e.g., `https://radio.example.com:7000`). During `npm run dev` this powers the Vite proxy; inside Docker it is injected at runtime and also configures the reverse proxy.
 
-2. **Build & start**
+2. **Start the published image**
 
 	 ```bash
-	 docker compose up --build
+	 docker compose up -d
 	 ```
 
-	 The compose file builds the Vite project, bakes `ICECAST_BASE_URL` into the client bundle, and serves the compiled assets through Nginx on port 4173.
+	 The compose file pulls `d3vle0/asmr:latest`. On launch the entrypoint writes `/usr/share/nginx/html/env.js` and regenerates the Nginx config so `/icecast-status` and `/icecast-stream` are proxied to your Icecast host—no CORS issues, no need to rebuild.
 
 3. **Use the dashboard**
 	 - Browse to http://localhost:4173.
