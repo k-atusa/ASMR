@@ -21,13 +21,13 @@ export default defineConfig(({ mode }) => {
 
   const proxyConfig = upstream
     ? {
-        '/icecast-status': {
+        '/api/icecast-status': {
           target: upstream,
           changeOrigin: true,
-          rewrite: (path: string) => path.replace(/^\/icecast-status/, '/status-json.xsl'),
+          rewrite: () => '/status-json.xsl',
           secure: false,
         },
-        '/icecast-stream': {
+        '/api/icecast-stream': {
           target: upstream,
           changeOrigin: true,
           rewrite: () => '/stream',

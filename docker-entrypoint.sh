@@ -19,6 +19,12 @@ window.__ICECAST_RUNTIME_CONFIG__ = {
 EOF
 
 if [ -n "${RUNTIME_BASE}" ]; then
+  SSL_SNIPPET=""
+  if [ "$UPSTREAM_SCHEME" = "https" ]; then
+    SSL_SNIPPET="    proxy_ssl_server_name on;
+    proxy_ssl_name ${UPSTREAM_HOST};"
+  fi
+
   cat >"${NGINX_CONF_PATH}" <<EOF
 server {
   listen 80;
@@ -35,7 +41,15 @@ server {
     proxy_set_header Host ${UPSTREAM_HOST};
     proxy_set_header X-Real-IP \$remote_addr;
     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-$(if [ "$UPSTREAM_SCHEME" = "https" ]; then printf '    proxy_ssl_server_name on;\n    proxy_ssl_name %s;\n' "$UPSTREAM_HOST"; fi)
+${SSL_SNIPPET}
+  }
+
+  location /api/icecast-status {
+    proxy_pass ${RUNTIME_BASE}/status-json.xsl;
+    proxy_set_header Host ${UPSTREAM_HOST};
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+${SSL_SNIPPET}
   }
 
   location /icecast-stream {
@@ -43,7 +57,15 @@ $(if [ "$UPSTREAM_SCHEME" = "https" ]; then printf '    proxy_ssl_server_name on
     proxy_set_header Host ${UPSTREAM_HOST};
     proxy_set_header X-Real-IP \$remote_addr;
     proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-$(if [ "$UPSTREAM_SCHEME" = "https" ]; then printf '    proxy_ssl_server_name on;\n    proxy_ssl_name %s;\n' "$UPSTREAM_HOST"; fi)
+${SSL_SNIPPET}
+  }
+
+  location /api/icecast-stream {
+    proxy_pass ${RUNTIME_BASE}/stream;
+    proxy_set_header Host ${UPSTREAM_HOST};
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+${SSL_SNIPPET}
   }
 }
 EOF

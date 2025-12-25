@@ -104,7 +104,7 @@ docker compose up -d
 - Confirm `/stream` mount appears under **Mounts**.
 - Test playback at `http://<server>:7000/stream`.
 
-Once the stream is reachable, the ASMR frontend can proxy `/icecast-status` and `/icecast-stream` against this origin.
+Once the stream is reachable, the ASMR frontend can proxy `/api/icecast-status` and `/api/icecast-stream` against this origin.
 
 ---
 
@@ -119,11 +119,11 @@ Once the stream is reachable, the ASMR frontend can proxy `/icecast-status` and 
 	 docker compose up -d
 	 ```
 
-	 The compose file pulls `d3vle0/asmr:latest`. On launch the entrypoint writes `/usr/share/nginx/html/env.js` and regenerates the Nginx config so `/icecast-status` and `/icecast-stream` are proxied to your Icecast host—no CORS issues, no need to rebuild.
+	 The compose file pulls `d3vle0/asmr:latest`. On launch the entrypoint writes `/usr/share/nginx/html/env.js` and regenerates the Nginx config so `/api/icecast-status` and `/api/icecast-stream` (plus the legacy `/icecast-*` paths) are proxied to your Icecast host—no CORS issues, no need to rebuild.
 
 3. **Use the dashboard**
 	 - Browse to http://localhost:4173.
-	 - The UI polls `/icecast-status` for metadata and plays audio from `/icecast-stream`, both proxied to `ICECAST_BASE_URL`.
+	 - The UI polls `/api/icecast-status` for metadata and plays audio from `/api/icecast-stream`, both proxied to `ICECAST_BASE_URL`.
 
 4. **Shutdown**
 
@@ -132,4 +132,11 @@ Once the stream is reachable, the ASMR frontend can proxy `/icecast-status` and 
 	 ```
 
 For local development outside Docker, you can still run `npm install` followed by `npm run dev`, but `ICECAST_BASE_URL` must be present in your shell environment so the Vite dev server proxies resolve correctly.
+
+
+## Deploying to Vercel
+
+1. Set `ICECAST_BASE_URL` in the Vercel dashboard (Project Settings → Environment Variables). This is the only variable the Serverless Functions need.
+2. The build output stays static, but `/api/icecast-status` and `/api/icecast-stream` are handled by the Vercel Functions in `/api`. They proxy your Icecast server using the environment variable, so no `vercel.json` rewrites are required.
+3. The frontend already calls the `/api` paths, so once the deployment finishes, visiting your Vercel URL will show live metadata and playback without CORS errors.
 

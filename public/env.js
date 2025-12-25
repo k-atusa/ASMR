@@ -1,0 +1,3 @@
+window.__ICECAST_RUNTIME_CONFIG__ = {
+  ICECAST_BASE_URL: ""
+};

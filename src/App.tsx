@@ -21,8 +21,8 @@ const resolveBaseUrl = (): string => {
 
   return sanitizeBaseUrl(import.meta.env.ICECAST_BASE_URL)
 }
-const STATUS_URL = '/icecast-status'
-const STREAM_FALLBACK_URL = '/icecast-stream'
+const STATUS_URL = '/api/icecast-status'
+const STREAM_FALLBACK_URL = '/api/icecast-stream'
 
 type MaybeSource = {
   title?: string
