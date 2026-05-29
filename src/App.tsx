@@ -541,21 +541,6 @@ const App = () => {
                 : 'station currently offline'}
             </h2>
 
-            {/* Minimalist Live Stream Timeline */}
-            {isLive && isPlaying && (
-              <div className="flex items-center gap-4 py-1">
-                <span className="font-mono text-[10px] text-neutral-600 dark:text-neutral-300">
-                  {formatPlaybackTime(playbackSeconds)}
-                </span>
-                <div className="h-[1px] flex-1 bg-neutral-100 dark:bg-neutral-900 relative overflow-hidden">
-                  <div className="absolute top-0 left-0 h-full w-1/3 bg-neutral-900 dark:bg-neutral-100 animate-pulse" />
-                </div>
-                <span className="font-mono text-[10px] text-neutral-500 dark:text-neutral-400 uppercase tracking-widest">
-                  live
-                </span>
-              </div>
-            )}
-
             {/* Minimal Action Row */}
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-center gap-4">
@@ -565,7 +550,7 @@ const App = () => {
                   variant="outline"
                   className="rounded-full border-neutral-200 dark:border-neutral-800 px-6 py-4 font-mono text-xs lowercase hover:bg-neutral-100 dark:hover:bg-neutral-900/60 transition-all cursor-pointer"
                 >
-                  {isPlaying ? 'pause' : 'play'}
+                  {isPlaying ? `pause (${formatPlaybackTime(playbackSeconds)})` : 'play'}
                 </Button>
 
                 {isLive && (
