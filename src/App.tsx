@@ -537,8 +537,8 @@ const App = () => {
                     setSelectedChannel(chan)
                   }}
                   className={`w-full flex items-center justify-between py-2 px-3 rounded-lg transition-all duration-150 cursor-pointer ${isSelected
-                    ? 'bg-neutral-50/50 dark:bg-neutral-900/30'
-                    : 'hover:bg-neutral-50/10 dark:hover:bg-neutral-900/10'
+                    ? 'bg-neutral-200/70 dark:bg-neutral-900/70'
+                    : 'hover:bg-neutral-100/80 dark:hover:bg-neutral-900/30'
                     }`}
                 >
                   <div className="flex items-baseline gap-4 min-w-0">
