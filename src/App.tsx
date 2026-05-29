@@ -426,7 +426,10 @@ const App = () => {
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-neutral-800 selection:text-white font-sans antialiased flex flex-col justify-center transition-colors duration-200">
       {/* Hyper-minimal Centered Device Frame */}
-      <div className="w-full max-w-[500px] mx-auto px-6 py-12 flex flex-col gap-10">
+      <div 
+        key={selectedChannel ? selectedChannel.mount : 'list'} 
+        className="w-full max-w-[500px] mx-auto px-6 py-12 flex flex-col gap-10 animate-in fade-in duration-300"
+      >
 
         {/* Simple Lowercase Header with Theme Toggle / Back Button */}
         <header className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-900 pb-4">
@@ -457,7 +460,7 @@ const App = () => {
 
         {/* Playlist / Stations Tracklist (Mode 1: Only displayed when no channel is selected) */}
         {!selectedChannel && (
-          <section className="flex flex-col gap-2 animate-in fade-in duration-200">
+          <section className="flex flex-col gap-2">
             {channels.map((chan, index) => {
               const songTitle = getChannelSongTitle(chan.mount)
               const isChanLive = !!songTitle
@@ -496,7 +499,7 @@ const App = () => {
 
         {/* Playback Control Deck (Mode 2: Only displayed when a channel has been selected) */}
         {selectedChannel && (
-          <section className="py-6 flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <section className="py-6 flex flex-col gap-6">
             <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400 dark:text-neutral-600">
               <span className="flex items-center gap-1.5">
                 <span>{selectedChannel.name.toLowerCase()}</span>
@@ -580,7 +583,7 @@ const App = () => {
 
         {/* Clean, Faint Footer (Mode 2: Only displayed when a channel has been selected) */}
         {selectedChannel && (
-          <footer className="border-t border-neutral-100 dark:border-neutral-900 pt-5 flex items-center justify-between text-[10px] font-mono text-neutral-400 dark:text-neutral-600 animate-in fade-in duration-300">
+          <footer className="border-t border-neutral-100 dark:border-neutral-900 pt-5 flex items-center justify-between text-[10px] font-mono text-neutral-400 dark:text-neutral-600">
             <div className="flex items-center gap-1.5">
               <span>sync {updatedAtText}</span>
               <span>•</span>
