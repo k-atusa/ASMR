@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { SkipForward, RefreshCw } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Pause, Play, Music } from 'lucide-react'
 
 declare global {
   interface Window {
@@ -34,7 +33,6 @@ const resolveChannels = (): string => {
 }
 
 const STATUS_URL = '/api/icecast-status'
-const CONTROL_URL = '/api/liquidsoap-control'
 
 type MaybeSource = {
   title?: string
@@ -79,7 +77,6 @@ const normalizeStreamUrl = (candidate: string | null, mount: string): string => 
       return fallbackUrl
     }
 
-    // Force hostname, port, and protocol to match ICECAST_BASE_URL if configured!
     const configuredBase = resolveBaseUrl()
     if (configuredBase) {
       try {
@@ -90,7 +87,7 @@ const normalizeStreamUrl = (candidate: string | null, mount: string): string => 
           parsed.port = baseParsed.port
         }
       } catch {
-        // ignore parsing error
+        // ignore
       }
     }
 
@@ -121,10 +118,8 @@ const cleanSongTitle = (title: string | null | undefined, mount: string): string
   const trimmed = decoded.trim()
   const lower = trimmed.toLowerCase()
 
-  // Filter out "mount:" or "mount: <anything>" or starts with "mount"
   if (lower.startsWith('mount:') || lower.startsWith('mount ')) return null
 
-  // Filter out filenames/extensions
   if (
     lower.endsWith('.mp3') ||
     lower.endsWith('.ogg') ||
@@ -138,15 +133,13 @@ const cleanSongTitle = (title: string | null | undefined, mount: string): string
     return null
   }
 
-  // Filter out direct match with mount name
   const cleanMount = mount.replace(/^\//, '').toLowerCase()
-  const cleanMountBase = cleanMount.replace(/\.[^/.]+$/, "") // e.g. "pop" from "pop.mp3"
+  const cleanMountBase = cleanMount.replace(/\.[^/.]+$/, "")
   
   if (lower === cleanMount || lower === `/${cleanMount}` || lower === cleanMountBase || lower === `/${cleanMountBase}`) {
     return null
   }
 
-  // Filter out placeholders
   const placeholders = ['live stream', 'unknown', 'various', 'various artists', 'fallback', 'default', 'stream', 'icecast', 'liquidsoap']
   if (placeholders.includes(lower)) return null
 
@@ -204,34 +197,14 @@ const formatLiveDuration = (iso: string | null): string | null => {
   return `${minutes}m`
 }
 
-const formatPlaybackTime = (seconds: number): string => {
-  const safeSeconds = Math.max(0, Math.floor(seconds))
-  const hours = Math.floor(safeSeconds / 3600)
-  const minutes = Math.floor((safeSeconds % 3600) / 60)
-  const remainingSeconds = safeSeconds % 60
-
-  const mm = minutes.toString().padStart(2, '0')
-  const ss = remainingSeconds.toString().padStart(2, '0')
-
-  if (hours > 0) {
-    return `${hours}:${mm}:${ss}`
-  }
-
-  return `${minutes}:${ss}`
-}
-
 const App = () => {
   const [rawPayload, setRawPayload] = useState<IcecastPayload | null>(null)
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [liveClock, setLiveClock] = useState(() => Date.now())
-  const [playbackSeconds, setPlaybackSeconds] = useState(0)
-  const [isSkipping, setIsSkipping] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
   const hasLoadedOnce = useRef(false)
 
-  // Light/Dark Theme state
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -239,7 +212,6 @@ const App = () => {
     return 'dark'
   })
 
-  // Parse Channels list
   const channels = useMemo(() => {
     const rawChannels = resolveChannels() || 'club.mp3:Club,china.mp3:China,edm.mp3:EDM,jpop.mp3:J-Pop,kpop.mp3:K-Pop,pop.mp3:Pop'
     return rawChannels.split(',').map(item => {
@@ -254,10 +226,8 @@ const App = () => {
     }).filter(c => c.mount)
   }, [])
 
-  // Initially NULL (no channel selected) to show only header and playlist
   const [selectedChannel, setSelectedChannel] = useState<{ mount: string; name: string } | null>(null)
 
-  // Synchronize system dark/light class
   useEffect(() => {
     const root = window.document.documentElement
     if (theme === 'dark') {
@@ -268,19 +238,12 @@ const App = () => {
     localStorage.setItem('theme', theme)
   }, [theme])
 
-  // Derived current channel's status
   const status = useMemo(() => {
     if (!selectedChannel) return null
     return findStatusForMount(rawPayload, selectedChannel.mount)
   }, [rawPayload, selectedChannel])
 
-
-
   const refreshStatus = useCallback(async (signal?: AbortSignal) => {
-    if (!hasLoadedOnce.current) {
-      setLoading(true)
-    }
-
     try {
       const response = await fetch(STATUS_URL, {
         method: 'GET',
@@ -305,10 +268,6 @@ const App = () => {
       }
       const message = err instanceof Error ? err.message : 'Something unexpected happened.'
       setError(message)
-    } finally {
-      if (!signal || !signal.aborted) {
-        setLoading(false)
-      }
     }
   }, [])
 
@@ -336,7 +295,6 @@ const App = () => {
     }
   }, [])
 
-  // When changing channel, pause player and load new source
   useEffect(() => {
     const player = audioRef.current
     if (!player || !selectedChannel) return
@@ -344,34 +302,40 @@ const App = () => {
     player.pause()
     player.load()
     setIsPlaying(false)
-    setPlaybackSeconds(0)
+    
+    // Auto-play when selecting a new channel
+    player.play().then(() => {
+      setIsPlaying(true)
+      setError(null)
+    }).catch(err => {
+      console.warn("Auto-play prevented", err)
+      // We don't block the UI, just require manual play click.
+    })
   }, [selectedChannel?.mount])
 
-  // formattedStart removed (unused)
-
   const liveDuration = useMemo(() => formatLiveDuration(status?.streamStartIso ?? null), [status?.streamStartIso, liveClock])
-
-  // streamDisplayUrl removed (unused)
 
   const streamPlayUrl = useMemo(() => {
     if (!selectedChannel) return ''
     return status?.listenUrl || `/api/icecast-stream?mount=${encodeURIComponent(selectedChannel.mount)}`
   }, [status?.listenUrl, selectedChannel])
 
-  // updatedAtText removed (unused)
+  const handleStopAndClose = () => {
+    const player = audioRef.current
+    if (player) {
+      player.pause()
+      player.load()
+    }
+    setIsPlaying(false)
+    setSelectedChannel(null)
+  }
 
   const handleTogglePlayback = async () => {
     const player = audioRef.current
-    if (!player) {
-      setError('Unable to locate an audio player.')
-      return
-    }
+    if (!player) return
 
     if (isPlaying) {
-      player.pause()
-      player.load() // Closes connection & empties buffer for true live stop!
-      setIsPlaying(false)
-      setPlaybackSeconds(0)
+      handleStopAndClose()
       return
     }
 
@@ -385,76 +349,19 @@ const App = () => {
     }
   }
 
-  const handleManualRefresh = () => {
-    refreshStatus()
-  }
-
-  const handleNextTrack = async () => {
-    if (isSkipping) return
-
-    setIsSkipping(true)
-    setError(null)
-
-    try {
-      const response = await fetch(CONTROL_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ command: 'skip' }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || `Command failed (${response.status})`)
-      }
-
-      setTimeout(() => {
-        refreshStatus()
-      }, 500)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to control playback'
-      setError(message)
-    } finally {
-      setIsSkipping(false)
-    }
-  }
-
-  // Handle going back (Deselects and resets player cleanly)
-  const handleGoBack = () => {
-    const player = audioRef.current
-    if (player) {
-      player.pause()
-    }
-    setIsPlaying(false)
-    setPlaybackSeconds(0)
-    setSelectedChannel(null)
-  }
-
   const isLive = !!status
 
   return (
-    <div className="min-h-screen bg-background text-foreground selection:bg-neutral-800 selection:text-white font-sans antialiased flex flex-col justify-center transition-colors duration-200">
-      {/* Hyper-minimal Centered Device Frame */}
-      <div
-        key={selectedChannel ? selectedChannel.mount : 'list'}
-        className="w-full max-w-[500px] mx-auto px-6 py-12 flex flex-col gap-10 animate-in fade-in duration-300"
-      >
-
-        {/* Simple Lowercase Header with Theme Toggle / Back Button */}
+    <div className="min-h-screen bg-background text-foreground selection:bg-neutral-800 selection:text-white font-sans antialiased flex flex-col transition-colors duration-200">
+      
+      {/* Container */}
+      <div className="w-full max-w-[500px] mx-auto px-6 py-12 flex flex-col gap-10 relative">
+        
+        {/* Header */}
         <header className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-900 pb-4">
-          {selectedChannel ? (
-            <button
-              onClick={handleGoBack}
-              className="font-mono text-sm tracking-wide font-semibold lowercase cursor-pointer hover:text-neutral-500 dark:hover:text-neutral-400 transition-colors"
-            >
-              [ back ]
-            </button>
-          ) : (
-            <span className="font-mono text-sm tracking-[0.2em] font-semibold lowercase">
-              asmr
-            </span>
-          )}
+          <span className="font-mono text-sm tracking-[0.2em] font-semibold lowercase">
+            asmr
+          </span>
           <div className="flex items-center gap-4">
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -473,106 +380,46 @@ const App = () => {
           </div>
         </header>
 
-        {/* Playlist / Stations Tracklist (Mode 1: Only displayed when no channel is selected) */}
-        {!selectedChannel && (
-          <section className="flex flex-col gap-2">
-            {channels.map((chan, index) => {
-              const chanStatus = findStatusForMount(rawPayload, chan.mount)
-              const isChanLive = !!chanStatus
-              const songTitle = chanStatus?.title
+        {/* Playlist / Stations Tracklist (Always visible) */}
+        <section className={`flex flex-col gap-2 ${selectedChannel ? 'pb-32' : 'pb-8'}`}>
+          {channels.map((chan, index) => {
+            const chanStatus = findStatusForMount(rawPayload, chan.mount)
+            const isChanLive = !!chanStatus
+            const songTitle = chanStatus?.title
+            const isSelected = selectedChannel?.mount === chan.mount
 
-              return (
-                <button
-                  key={chan.mount}
-                  onClick={() => setSelectedChannel(chan)}
-                  className="w-full flex items-baseline justify-between py-2.5 border-b border-neutral-100 dark:border-neutral-900/60 group text-left transition-colors duration-100 cursor-pointer"
-                >
-                  <div className="flex items-baseline gap-4 min-w-0">
-                    <span className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
-                      {(index + 1).toString().padStart(2, '0')}
-                    </span>
-                    <span className="text-sm tracking-tight text-neutral-600 hover:text-foreground dark:text-neutral-300 dark:hover:text-neutral-100 transition-colors">
-                      {chan.name.toLowerCase()}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-3 min-w-0 pl-4">
-                    {isChanLive && songTitle && (
-                      <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400 truncate max-w-[160px] sm:max-w-[200px]">
-                        {songTitle}
-                      </span>
-                    )}
-                    <span className={`h-1.5 w-1.5 rounded-full shrink-0 transition-all ${isChanLive
-                      ? 'bg-neutral-300 dark:bg-neutral-700'
-                      : 'bg-transparent border border-neutral-200 dark:border-neutral-800'
-                      }`} />
-                  </div>
-                </button>
-              )
-            })}
-          </section>
-        )}
-
-        {/* Playback Control Deck (Mode 2: Only displayed when a channel has been selected) */}
-        {selectedChannel && (
-          <section className="py-6 flex flex-col gap-6">
-            <div className="flex items-center justify-between text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
-              <span className="flex items-center gap-1.5">
-                <span>{selectedChannel.name.toLowerCase()}</span>
-                <span>/</span>
-                <span className={isLive ? 'text-foreground font-medium' : 'text-neutral-500 dark:text-neutral-400'}>
-                  {isLive ? 'online' : 'offline'}
-                </span>
-              </span>
-              {isLive && liveDuration && (
-                <span>
-                  live: {liveDuration}
-                </span>
-              )}
-            </div>
-
-            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground leading-snug min-h-[4rem] flex items-center">
-              {isLive
-                ? (status?.title || selectedChannel.name)
-                : 'station currently offline'}
-            </h2>
-
-            {/* Minimal Action Row */}
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-4">
-                <Button
-                  onClick={handleTogglePlayback}
-                  disabled={!isLive}
-                  variant="outline"
-                  className="rounded-full border-neutral-200 dark:border-neutral-800 px-6 py-4 font-mono text-xs lowercase hover:bg-neutral-100 dark:hover:bg-neutral-900/60 transition-all cursor-pointer"
-                >
-                  {isPlaying ? `stop (${formatPlaybackTime(playbackSeconds)})` : 'play'}
-                </Button>
-
-                {isLive && (
-                  <Button
-                    onClick={handleNextTrack}
-                    disabled={isSkipping}
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full text-neutral-500 hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900/60 cursor-pointer"
-                  >
-                    <SkipForward className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-
-              <Button
-                onClick={handleManualRefresh}
-                disabled={loading}
-                variant="ghost"
-                className="font-mono text-xs text-neutral-500 hover:text-foreground dark:text-neutral-400 p-0 h-auto hover:bg-transparent cursor-pointer"
+            return (
+              <button
+                key={chan.mount}
+                onClick={() => setSelectedChannel(chan)}
+                className={`w-full flex items-baseline justify-between py-2.5 border-b border-neutral-100 dark:border-neutral-900/60 group text-left transition-colors duration-100 cursor-pointer ${
+                  isSelected ? 'bg-neutral-50/50 dark:bg-neutral-900/30 rounded-lg px-3 -mx-3 border-transparent' : ''
+                }`}
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
-          </section>
-        )}
+                <div className="flex items-baseline gap-4 min-w-0">
+                  <span className={`font-mono text-[11px] ${isSelected ? 'text-foreground font-semibold' : 'text-neutral-500 dark:text-neutral-400'}`}>
+                    {(index + 1).toString().padStart(2, '0')}
+                  </span>
+                  <span className={`text-sm tracking-tight transition-colors ${isSelected ? 'text-foreground font-semibold' : 'text-neutral-600 hover:text-foreground dark:text-neutral-300 dark:hover:text-neutral-100'}`}>
+                    {chan.name.toLowerCase()}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 min-w-0 pl-4">
+                  {isChanLive && songTitle && (
+                    <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400 truncate max-w-[160px] sm:max-w-[200px]">
+                      {songTitle}
+                    </span>
+                  )}
+                  <span className={`h-1.5 w-1.5 rounded-full shrink-0 transition-all ${isChanLive
+                    ? (isSelected ? 'bg-black dark:bg-white' : 'bg-neutral-300 dark:bg-neutral-700')
+                    : 'bg-transparent border border-neutral-200 dark:border-neutral-800'
+                    }`} />
+                </div>
+              </button>
+            )
+          })}
+        </section>
 
         {/* Global Connection / Status Alert */}
         {error && (
@@ -581,10 +428,40 @@ const App = () => {
             <p>{error}</p>
           </div>
         )}
-
-        {/* Footer deleted for ultra-minimalist appearance */}
-
       </div>
+
+      {/* Floating Mini Player Overlay */}
+      {selectedChannel && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[420px] bg-[#362725] text-white rounded-[24px] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 fade-in duration-300 z-50">
+          <div className="flex items-center gap-4 p-2.5 pr-4">
+            {/* Album Art Placeholder */}
+            <div className="h-12 w-12 bg-[#EFECE3] text-[#362725] rounded-[18px] flex items-center justify-center shrink-0 shadow-inner">
+              <Music className="h-6 w-6 opacity-80" strokeWidth={1.5} />
+            </div>
+            
+            {/* Track Info */}
+            <div className="flex-col flex flex-1 min-w-0 justify-center">
+              <span className="text-[14px] font-semibold truncate tracking-tight text-white/95 leading-tight">
+                {isLive ? (status?.title || selectedChannel.name) : 'offline'}
+              </span>
+              <span className="text-[12px] text-white/60 truncate mt-0.5 tracking-tight font-medium">
+                {selectedChannel.name} {isLive && liveDuration ? `• live: ${liveDuration}` : ''}
+              </span>
+            </div>
+
+            {/* Controls */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button 
+                onClick={handleTogglePlayback}
+                disabled={!isLive}
+                className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {isPlaying ? <Pause className="h-5 w-5 fill-white" strokeWidth={0} /> : <Play className="h-5 w-5 fill-white" strokeWidth={0} />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedChannel && (
         <audio
@@ -594,7 +471,6 @@ const App = () => {
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onEnded={() => setIsPlaying(false)}
-          onTimeUpdate={(event) => setPlaybackSeconds(event.currentTarget.currentTime)}
         />
       )}
     </div>
