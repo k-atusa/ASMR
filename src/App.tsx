@@ -262,11 +262,11 @@ const App = () => {
   const audioRef = useRef<HTMLAudioElement>(null)
   const hasLoadedOnce = useRef(false)
 
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+  const [theme, setTheme] = useState<'dark' | 'light' | 'system'>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
+      return (localStorage.getItem('theme') as 'dark' | 'light' | 'system') || 'system'
     }
-    return 'dark'
+    return 'system'
   })
 
   const channels = useMemo(() => {
@@ -326,13 +326,40 @@ const App = () => {
 
   useEffect(() => {
     const root = window.document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
+
+    const applyTheme = () => {
+      if (theme === 'system') {
+        const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        if (isDark) {
+          root.classList.add('dark')
+        } else {
+          root.classList.remove('dark')
+        }
+      } else if (theme === 'dark') {
+        root.classList.add('dark')
+      } else {
+        root.classList.remove('dark')
+      }
     }
+
+    applyTheme()
     localStorage.setItem('theme', theme)
+
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      const listener = () => applyTheme()
+      mediaQuery.addEventListener('change', listener)
+      return () => mediaQuery.removeEventListener('change', listener)
+    }
   }, [theme])
+
+  const cycleTheme = () => {
+    setTheme(prev => {
+      if (prev === 'dark') return 'light'
+      if (prev === 'light') return 'system'
+      return 'dark'
+    })
+  }
 
   const status = useMemo(() => {
     if (!selectedChannel) return null
@@ -474,12 +501,6 @@ const App = () => {
                 live: {globalUptime}
               </span>
             )}
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="font-mono text-[10px] text-neutral-500 hover:text-foreground dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors cursor-pointer"
-            >
-              [ {theme === 'dark' ? 'light' : 'dark'} ]
-            </button>
             <a
               href="https://github.com/k-atusa/asmr"
               target="_blank"
@@ -488,6 +509,12 @@ const App = () => {
             >
               [ github ]
             </a>
+            <button
+              onClick={cycleTheme}
+              className="font-mono text-[10px] text-neutral-500 hover:text-foreground dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors cursor-pointer"
+            >
+              [ {theme} ]
+            </button>
           </div>
         </header>
 
