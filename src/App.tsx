@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Pause, Play, Music } from 'lucide-react'
+import { Play, Square } from 'lucide-react'
 
 declare global {
   interface Window {
@@ -135,7 +135,7 @@ const cleanSongTitle = (title: string | null | undefined, mount: string): string
 
   const cleanMount = mount.replace(/^\//, '').toLowerCase()
   const cleanMountBase = cleanMount.replace(/\.[^/.]+$/, "")
-  
+
   if (lower === cleanMount || lower === `/${cleanMount}` || lower === cleanMountBase || lower === `/${cleanMountBase}`) {
     return null
   }
@@ -302,7 +302,7 @@ const App = () => {
     player.pause()
     player.load()
     setIsPlaying(false)
-    
+
     // Auto-play when selecting a new channel
     player.play().then(() => {
       setIsPlaying(true)
@@ -353,10 +353,10 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-neutral-800 selection:text-white font-sans antialiased flex flex-col transition-colors duration-200">
-      
+
       {/* Container */}
       <div className="w-full max-w-[500px] mx-auto px-6 py-12 flex flex-col gap-10 relative">
-        
+
         {/* Header */}
         <header className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-900 pb-4">
           <span className="font-mono text-sm tracking-[0.2em] font-semibold lowercase">
@@ -381,7 +381,7 @@ const App = () => {
         </header>
 
         {/* Playlist / Stations Tracklist (Always visible) */}
-        <section className={`flex flex-col gap-2 ${selectedChannel ? 'pb-32' : 'pb-8'}`}>
+        <section className={`flex flex-col ${selectedChannel ? 'pb-32' : 'pb-8'}`}>
           {channels.map((chan, index) => {
             const chanStatus = findStatusForMount(rawPayload, chan.mount)
             const isChanLive = !!chanStatus
@@ -389,34 +389,35 @@ const App = () => {
             const isSelected = selectedChannel?.mount === chan.mount
 
             return (
-              <button
+              <div
                 key={chan.mount}
-                onClick={() => setSelectedChannel(chan)}
-                className={`w-full flex items-baseline justify-between py-2.5 border-b border-neutral-100 dark:border-neutral-900/60 group text-left transition-colors duration-100 cursor-pointer ${
-                  isSelected ? 'bg-neutral-50/50 dark:bg-neutral-900/30 rounded-lg px-3 -mx-3 border-transparent' : ''
-                }`}
+                className="w-full border-b border-neutral-100 dark:border-neutral-900/60 last:border-b-0 py-1"
               >
-                <div className="flex items-baseline gap-4 min-w-0">
-                  <span className={`font-mono text-[11px] ${isSelected ? 'text-foreground font-semibold' : 'text-neutral-500 dark:text-neutral-400'}`}>
-                    {(index + 1).toString().padStart(2, '0')}
-                  </span>
-                  <span className={`text-sm tracking-tight transition-colors ${isSelected ? 'text-foreground font-semibold' : 'text-neutral-600 hover:text-foreground dark:text-neutral-300 dark:hover:text-neutral-100'}`}>
-                    {chan.name.toLowerCase()}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3 min-w-0 pl-4">
-                  {isChanLive && songTitle && (
-                    <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400 truncate max-w-[160px] sm:max-w-[200px]">
-                      {songTitle}
+                <button
+                  onClick={() => setSelectedChannel(chan)}
+                  className={`w-full flex items-center justify-between py-2 px-3 rounded-lg transition-all duration-150 cursor-pointer ${isSelected
+                    ? 'bg-neutral-50/50 dark:bg-neutral-900/30'
+                    : 'hover:bg-neutral-50/10 dark:hover:bg-neutral-900/10'
+                    }`}
+                >
+                  <div className="flex items-baseline gap-4 min-w-0">
+                    <span className={`font-mono text-[11px] ${isSelected ? 'text-foreground font-semibold' : 'text-neutral-500 dark:text-neutral-400'}`}>
+                      {(index + 1).toString().padStart(2, '0')}
                     </span>
-                  )}
-                  <span className={`h-1.5 w-1.5 rounded-full shrink-0 transition-all ${isChanLive
-                    ? (isSelected ? 'bg-black dark:bg-white' : 'bg-neutral-300 dark:bg-neutral-700')
-                    : 'bg-transparent border border-neutral-200 dark:border-neutral-800'
-                    }`} />
-                </div>
-              </button>
+                    <span className={`text-sm tracking-tight transition-colors ${isSelected ? 'text-foreground font-semibold' : 'text-neutral-600 hover:text-foreground dark:text-neutral-300 dark:hover:text-neutral-100'}`}>
+                      {chan.name.toLowerCase()}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 min-w-0 pl-4">
+                    {isChanLive && songTitle && (
+                      <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400 truncate max-w-[160px] sm:max-w-[200px]">
+                        {songTitle}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              </div>
             )
           })}
         </section>
@@ -432,31 +433,27 @@ const App = () => {
 
       {/* Floating Mini Player Overlay */}
       {selectedChannel && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[420px] bg-[#362725] text-white rounded-[24px] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 fade-in duration-300 z-50">
-          <div className="flex items-center gap-4 p-2.5 pr-4">
-            {/* Album Art Placeholder */}
-            <div className="h-12 w-12 bg-[#EFECE3] text-[#362725] rounded-[18px] flex items-center justify-center shrink-0 shadow-inner">
-              <Music className="h-6 w-6 opacity-80" strokeWidth={1.5} />
-            </div>
-            
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[380px] bg-popover text-popover-foreground border border-border rounded-full shadow-lg overflow-hidden animate-in slide-in-from-bottom-8 fade-in duration-300 z-50">
+          <div className="flex items-center gap-4 py-2.5 px-4">
+
             {/* Track Info */}
             <div className="flex-col flex flex-1 min-w-0 justify-center">
-              <span className="text-[14px] font-semibold truncate tracking-tight text-white/95 leading-tight">
+              <span className="text-[13px] font-semibold truncate tracking-tight leading-tight">
                 {isLive ? (status?.title || selectedChannel.name) : 'offline'}
               </span>
-              <span className="text-[12px] text-white/60 truncate mt-0.5 tracking-tight font-medium">
+              <span className="text-[11px] text-muted-foreground truncate mt-0.5 tracking-tight font-medium">
                 {selectedChannel.name} {isLive && liveDuration ? `• live: ${liveDuration}` : ''}
               </span>
             </div>
 
             {/* Controls */}
             <div className="flex items-center gap-2 shrink-0">
-              <button 
+              <button
                 onClick={handleTogglePlayback}
                 disabled={!isLive}
-                className="h-10 w-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors disabled:opacity-50 cursor-pointer"
+                className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-accent hover:text-accent-foreground text-foreground transition-colors disabled:opacity-50 cursor-pointer"
               >
-                {isPlaying ? <Pause className="h-5 w-5 fill-white" strokeWidth={0} /> : <Play className="h-5 w-5 fill-white" strokeWidth={0} />}
+                {isPlaying ? <Square className="h-4 w-4 fill-current" strokeWidth={0} /> : <Play className="h-4 w-4 fill-current" strokeWidth={0} />}
               </button>
             </div>
           </div>
