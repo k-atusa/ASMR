@@ -49,7 +49,7 @@ type IcecastPayload = {
 }
 
 type StationStatus = {
-  title: string
+  title: string | null
   listenUrl: string
   streamStartIso: string | null
 }
@@ -115,6 +115,44 @@ const decodeEntities = (value: string): string => {
   return doc.documentElement.textContent ?? value
 }
 
+const cleanSongTitle = (title: string | null | undefined, mount: string): string | null => {
+  if (!title) return null
+  const decoded = decodeEntities(title)
+  const trimmed = decoded.trim()
+  const lower = trimmed.toLowerCase()
+
+  // Filter out "mount:" or "mount: <anything>" or starts with "mount"
+  if (lower.startsWith('mount:') || lower.startsWith('mount ')) return null
+
+  // Filter out filenames/extensions
+  if (
+    lower.endsWith('.mp3') ||
+    lower.endsWith('.ogg') ||
+    lower.endsWith('.aac') ||
+    lower.endsWith('.m4a') ||
+    lower.endsWith('.flac') ||
+    lower.includes('.mp3') ||
+    lower.includes('.ogg') ||
+    lower.includes('.aac')
+  ) {
+    return null
+  }
+
+  // Filter out direct match with mount name
+  const cleanMount = mount.replace(/^\//, '').toLowerCase()
+  const cleanMountBase = cleanMount.replace(/\.[^/.]+$/, "") // e.g. "pop" from "pop.mp3"
+  
+  if (lower === cleanMount || lower === `/${cleanMount}` || lower === cleanMountBase || lower === `/${cleanMountBase}`) {
+    return null
+  }
+
+  // Filter out placeholders
+  const placeholders = ['live stream', 'unknown', 'various', 'various artists', 'fallback', 'default', 'stream', 'icecast', 'liquidsoap']
+  if (placeholders.includes(lower)) return null
+
+  return trimmed
+}
+
 const findStatusForMount = (payload: IcecastPayload | null, mount: string): StationStatus | null => {
   if (!payload) return null
   const base = payload.icestats ?? payload.icecast
@@ -144,7 +182,7 @@ const findStatusForMount = (payload: IcecastPayload | null, mount: string): Stat
   const streamStartIso = matched.stream_start_iso8601 ?? null
 
   return {
-    title: decodeEntities(rawTitle),
+    title: cleanSongTitle(rawTitle, mount),
     listenUrl,
     streamStartIso,
   }
@@ -160,33 +198,11 @@ const formatLiveDuration = (iso: string | null): string | null => {
   const hours = Math.floor(diff / 3600000)
   const minutes = Math.floor((diff % 3600000) / 60000)
 
-  const segments: string[] = []
   if (hours > 0) {
-    segments.push(`${hours}h`)
+    return `${hours}h ${minutes}m ago`
   }
-  segments.push(`${minutes.toString().padStart(2, '0')}m`)
-
-  return segments.join(' ')
+  return `${minutes}m ago`
 }
-
-const formatFullTimestamp = (date: Date): string =>
-  new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).format(date)
-
-const formatClockTime = (date: Date): string =>
-  new Intl.DateTimeFormat(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).format(date)
 
 const formatPlaybackTime = (seconds: number): string => {
   const safeSeconds = Math.max(0, Math.floor(seconds))
@@ -205,9 +221,7 @@ const formatPlaybackTime = (seconds: number): string => {
 }
 
 const App = () => {
-  const [runtimeBaseUrl, setRuntimeBaseUrl] = useState(() => resolveBaseUrl())
   const [rawPayload, setRawPayload] = useState<IcecastPayload | null>(null)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -260,14 +274,7 @@ const App = () => {
     return findStatusForMount(rawPayload, selectedChannel.mount)
   }, [rawPayload, selectedChannel])
 
-  const getChannelSongTitle = useCallback((mount: string) => {
-    const channelStatus = findStatusForMount(rawPayload, mount)
-    return channelStatus?.title || null
-  }, [rawPayload])
 
-  useEffect(() => {
-    setRuntimeBaseUrl(resolveBaseUrl())
-  }, [])
 
   const refreshStatus = useCallback(async (signal?: AbortSignal) => {
     if (!hasLoadedOnce.current) {
@@ -290,7 +297,6 @@ const App = () => {
 
       const payload = (await response.json()) as IcecastPayload
       setRawPayload(payload)
-      setLastUpdated(new Date())
       setError(null)
       hasLoadedOnce.current = true
     } catch (err) {
@@ -341,31 +347,18 @@ const App = () => {
     setPlaybackSeconds(0)
   }, [selectedChannel?.mount])
 
-  const formattedStart = useMemo(() => {
-    if (!status?.streamStartIso) return null
-    const date = new Date(status.streamStartIso)
-    if (Number.isNaN(date.getTime())) return null
-
-    return formatFullTimestamp(date)
-  }, [status?.streamStartIso])
+  // formattedStart removed (unused)
 
   const liveDuration = useMemo(() => formatLiveDuration(status?.streamStartIso ?? null), [status?.streamStartIso, liveClock])
 
-  const streamDisplayUrl = useMemo(() => {
-    if (!selectedChannel) return ''
-    const cleanMount = selectedChannel.mount.startsWith('/') ? selectedChannel.mount : `/${selectedChannel.mount}`
-    return runtimeBaseUrl ? `${runtimeBaseUrl}${cleanMount}` : ''
-  }, [runtimeBaseUrl, selectedChannel])
+  // streamDisplayUrl removed (unused)
 
   const streamPlayUrl = useMemo(() => {
     if (!selectedChannel) return ''
     return status?.listenUrl || `/api/icecast-stream?mount=${encodeURIComponent(selectedChannel.mount)}`
   }, [status?.listenUrl, selectedChannel])
 
-  const updatedAtText = useMemo(() => {
-    if (!lastUpdated) return '—'
-    return formatClockTime(lastUpdated)
-  }, [lastUpdated])
+  // updatedAtText removed (unused)
 
   const handleTogglePlayback = async () => {
     const player = audioRef.current
@@ -484,8 +477,9 @@ const App = () => {
         {!selectedChannel && (
           <section className="flex flex-col gap-2">
             {channels.map((chan, index) => {
-              const songTitle = getChannelSongTitle(chan.mount)
-              const isChanLive = !!songTitle
+              const chanStatus = findStatusForMount(rawPayload, chan.mount)
+              const isChanLive = !!chanStatus
+              const songTitle = chanStatus?.title
 
               return (
                 <button
@@ -503,7 +497,7 @@ const App = () => {
                   </div>
 
                   <div className="flex items-center gap-3 min-w-0 pl-4">
-                    {isChanLive && (
+                    {isChanLive && songTitle && (
                       <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400 truncate max-w-[160px] sm:max-w-[200px]">
                         {songTitle}
                       </span>
@@ -530,9 +524,9 @@ const App = () => {
                   {isLive ? 'online' : 'offline'}
                 </span>
               </span>
-              {isLive && formattedStart && (
+              {isLive && liveDuration && (
                 <span>
-                  started {formattedStart.split(' ')[1]} {liveDuration && `(${liveDuration})`}
+                  {liveDuration}
                 </span>
               )}
             </div>
@@ -588,26 +582,7 @@ const App = () => {
           </div>
         )}
 
-        {/* Clean, Faint Footer (Mode 2: Only displayed when a channel has been selected) */}
-        {selectedChannel && (
-          <footer className="border-t border-neutral-100 dark:border-neutral-900 pt-5 flex items-center justify-between text-[10px] font-mono text-neutral-500 dark:text-neutral-400 animate-in fade-in duration-300">
-            <div className="flex items-center gap-1.5">
-              <span>sync {updatedAtText}</span>
-              <span>•</span>
-              <span>{loading ? 'updating' : 'idle'}</span>
-            </div>
-            {streamDisplayUrl && (
-              <a
-                href={streamDisplayUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="hover:text-foreground underline underline-offset-4 hover:decoration-foreground decoration-neutral-300 dark:decoration-neutral-800"
-              >
-                mount: {selectedChannel.mount}
-              </a>
-            )}
-          </footer>
-        )}
+        {/* Footer deleted for ultra-minimalist appearance */}
 
       </div>
 
