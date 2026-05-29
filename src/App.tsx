@@ -54,7 +54,7 @@ type StationStatus = {
   streamStartIso: string | null
 }
 
-const resolveToUrl = (value: string): URL => { 
+const resolveToUrl = (value: string): URL => {
   if (/^https?:\/\//i.test(value)) {
     return new URL(value)
   }
@@ -104,11 +104,11 @@ const findStatusForMount = (payload: IcecastPayload | null, mount: string): Stat
   if (!payload) return null
   const base = payload.icestats ?? payload.icecast
   if (!base) return null
-  
-  const sources = Array.isArray(base.source) 
-    ? base.source 
-    : base.source 
-      ? [base.source] 
+
+  const sources = Array.isArray(base.source)
+    ? base.source
+    : base.source
+      ? [base.source]
       : [base as MaybeSource]
 
   const normalizedMount = mount.startsWith('/') ? mount : `/${mount}`
@@ -427,7 +427,7 @@ const App = () => {
     <div className="min-h-screen bg-background text-foreground selection:bg-neutral-800 selection:text-white font-sans antialiased flex flex-col justify-center transition-colors duration-200">
       {/* Hyper-minimal Centered Device Frame */}
       <div className="w-full max-w-[500px] mx-auto px-6 py-12 flex flex-col gap-10">
-        
+
         {/* Simple Lowercase Header with Theme Toggle / Back Button */}
         <header className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-900 pb-4">
           {selectedChannel ? (
@@ -450,7 +450,7 @@ const App = () => {
               [ {theme === 'dark' ? 'light' : 'dark'} ]
             </button>
             <span className="text-[10px] font-mono text-neutral-400 dark:text-neutral-600">
-              v2.0.0
+              v3.0.0
             </span>
           </div>
         </header>
@@ -476,18 +476,17 @@ const App = () => {
                       {chan.name.toLowerCase()}
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center gap-3 min-w-0 pl-4">
                     {isChanLive && (
                       <span className="text-[11px] font-mono text-neutral-400 dark:text-neutral-600 truncate max-w-[160px] sm:max-w-[200px]">
                         {songTitle}
                       </span>
                     )}
-                    <span className={`h-1.5 w-1.5 rounded-full shrink-0 transition-all ${
-                      isChanLive 
-                        ? 'bg-neutral-300 dark:bg-neutral-700' 
+                    <span className={`h-1.5 w-1.5 rounded-full shrink-0 transition-all ${isChanLive
+                        ? 'bg-neutral-300 dark:bg-neutral-700'
                         : 'bg-transparent border border-neutral-200 dark:border-neutral-800'
-                    }`} />
+                      }`} />
                   </div>
                 </button>
               )
@@ -514,8 +513,8 @@ const App = () => {
             </div>
 
             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground leading-snug min-h-[4rem] flex items-center">
-              {isLive 
-                ? (status?.title || 'buffering metadata...') 
+              {isLive
+                ? (status?.title || 'buffering metadata...')
                 : 'station currently offline'}
             </h2>
 
@@ -588,9 +587,9 @@ const App = () => {
               <span>{loading ? 'updating' : 'idle'}</span>
             </div>
             {streamDisplayUrl && (
-              <a 
-                href={streamDisplayUrl} 
-                target="_blank" 
+              <a
+                href={streamDisplayUrl}
+                target="_blank"
                 rel="noreferrer"
                 className="hover:text-foreground underline underline-offset-4 hover:decoration-foreground decoration-neutral-300 dark:decoration-neutral-800"
               >
