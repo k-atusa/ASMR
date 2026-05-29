@@ -188,9 +188,13 @@ const formatLiveDuration = (iso: string | null): string | null => {
   const diff = Date.now() - start
   if (diff < 0) return null
 
-  const hours = Math.floor(diff / 3600000)
+  const days = Math.floor(diff / 86400000)
+  const hours = Math.floor((diff % 86400000) / 3600000)
   const minutes = Math.floor((diff % 3600000) / 60000)
 
+  if (days > 0) {
+    return `${days}d ${hours}h ${minutes}m`
+  }
   if (hours > 0) {
     return `${hours}h ${minutes}m`
   }
@@ -468,8 +472,7 @@ const App = () => {
 
         {/* Stations Header with Uptime */}
         {globalUptime && (
-          <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400 dark:text-neutral-500 border-b border-neutral-100 dark:border-neutral-900 pb-1.5 px-3">
-            <span className="tracking-widest lowercase">stations</span>
+          <div className="flex justify-end text-[10px] font-mono text-neutral-400 dark:text-neutral-500 px-3 -mb-3">
             <span>live: {globalUptime}</span>
           </div>
         )}
