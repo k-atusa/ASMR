@@ -533,7 +533,7 @@ const App = () => {
 
             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground leading-snug min-h-[4rem] flex items-center">
               {isLive
-                ? (status?.title || 'buffering metadata...')
+                ? (status?.title || selectedChannel.name)
                 : 'station currently offline'}
             </h2>
 
