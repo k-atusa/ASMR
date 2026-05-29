@@ -5,6 +5,7 @@ declare global {
   interface Window {
     __ICECAST_RUNTIME_CONFIG__?: {
       ICECAST_BASE_URL?: string | null
+      ICECAST_CHANNELS?: string | null
     }
   }
 }
@@ -18,11 +19,20 @@ const resolveBaseUrl = (): string => {
       return runtime
     }
   }
-
   return sanitizeBaseUrl(import.meta.env.ICECAST_BASE_URL)
 }
+
+const resolveChannels = (): string => {
+  if (typeof window !== 'undefined') {
+    const runtime = window.__ICECAST_RUNTIME_CONFIG__?.ICECAST_CHANNELS
+    if (runtime) {
+      return runtime
+    }
+  }
+  return import.meta.env.ICECAST_CHANNELS || ''
+}
+
 const STATUS_URL = '/api/icecast-status'
-const STREAM_FALLBACK_URL = '/api/icecast-stream'
 const CONTROL_URL = '/api/liquidsoap-control'
 
 type MaybeSource = {
@@ -39,7 +49,7 @@ type IcecastPayload = {
 
 type StationStatus = {
   title: string
-  listenUrl: string | null
+  listenUrl: string
   streamStartIso: string | null
 }
 
@@ -55,16 +65,17 @@ const resolveToUrl = (value: string): URL => {
   throw new Error('Cannot resolve relative URL on the server context')
 }
 
-const normalizeStreamUrl = (candidate: string | null): string => {
+const normalizeStreamUrl = (candidate: string | null, mount: string): string => {
+  const fallbackUrl = `/api/icecast-stream?mount=${encodeURIComponent(mount)}`
   if (!candidate) {
-    return STREAM_FALLBACK_URL
+    return fallbackUrl
   }
 
   try {
     const parsed = resolveToUrl(candidate)
     const localhostHosts = ['localhost', '127.0.0.1', '::1', '0.0.0.0']
     if (localhostHosts.includes(parsed.hostname)) {
-      return STREAM_FALLBACK_URL
+      return fallbackUrl
     }
 
     if (parsed.protocol === 'http:') {
@@ -73,8 +84,8 @@ const normalizeStreamUrl = (candidate: string | null): string => {
 
     return parsed.toString()
   } catch (error) {
-    console.warn('Stream URL normalization failed, falling back to default stream.', error)
-    return STREAM_FALLBACK_URL
+    console.warn('Stream URL normalization failed, falling back to proxy stream.', error)
+    return fallbackUrl
   }
 }
 
@@ -88,24 +99,33 @@ const decodeEntities = (value: string): string => {
   return doc.documentElement.textContent ?? value
 }
 
-const pickSource = (payload?: MaybeSource & { source?: MaybeSource | MaybeSource[] }): MaybeSource | null => {
+const findStatusForMount = (payload: IcecastPayload | null, mount: string): StationStatus | null => {
   if (!payload) return null
-  if (Array.isArray(payload.source)) {
-    return payload.source[0] ?? payload
-  }
-  if (payload.source) {
-    return payload.source
-  }
-  return payload
-}
+  const base = payload.icestats ?? payload.icecast
+  if (!base) return null
+  
+  const sources = Array.isArray(base.source) 
+    ? base.source 
+    : base.source 
+      ? [base.source] 
+      : [base as MaybeSource]
 
-const extractStatus = (payload: IcecastPayload | undefined): StationStatus => {
-  const base = payload?.icestats ?? payload?.icecast
-  const source = pickSource(base)
+  const normalizedMount = mount.startsWith('/') ? mount : `/${mount}`
+  const matched = sources.find(src => {
+    if (!src.listenurl) return false
+    try {
+      const url = new URL(src.listenurl)
+      return url.pathname === normalizedMount
+    } catch {
+      return src.listenurl.endsWith(normalizedMount)
+    }
+  })
 
-  const rawTitle = source?.title ?? base?.title ?? 'Unidentified Broadcast'
-  const listenUrl = normalizeStreamUrl(source?.listenurl ?? base?.listenurl ?? null)
-  const streamStartIso = source?.stream_start_iso8601 ?? base?.stream_start_iso8601 ?? null
+  if (!matched) return null
+
+  const rawTitle = matched.title ?? 'Live Stream'
+  const listenUrl = normalizeStreamUrl(matched.listenurl ?? null, mount)
+  const streamStartIso = matched.stream_start_iso8601 ?? null
 
   return {
     title: decodeEntities(rawTitle),
@@ -170,7 +190,7 @@ const formatPlaybackTime = (seconds: number): string => {
 
 const App = () => {
   const [runtimeBaseUrl, setRuntimeBaseUrl] = useState(() => resolveBaseUrl())
-  const [status, setStatus] = useState<StationStatus | null>(null)
+  const [rawPayload, setRawPayload] = useState<IcecastPayload | null>(null)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -180,6 +200,33 @@ const App = () => {
   const [isSkipping, setIsSkipping] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
   const hasLoadedOnce = useRef(false)
+
+  // Parse Channels list
+  const channels = useMemo(() => {
+    const rawChannels = resolveChannels() || 'club.mp3:Club,china.mp3:China,edm.mp3:EDM,jpop.mp3:J-Pop,kpop.mp3:K-Pop,pop.mp3:Pop'
+    return rawChannels.split(',').map(item => {
+      const parts = item.trim().split(':')
+      const mount = parts[0].trim()
+      let name = parts[1]?.trim()
+      if (!name) {
+        const basename = mount.replace(/\.[^/.]+$/, "")
+        name = basename.charAt(0).toUpperCase() + basename.slice(1)
+      }
+      return { mount, name }
+    }).filter(c => c.mount)
+  }, [])
+
+  const [selectedChannel, setSelectedChannel] = useState<{ mount: string; name: string }>(() => channels[0] || { mount: 'stream', name: 'Live Stream' })
+
+  // Derived current channel's status
+  const status = useMemo(() => {
+    return findStatusForMount(rawPayload, selectedChannel.mount)
+  }, [rawPayload, selectedChannel.mount])
+
+  const getChannelSongTitle = useCallback((mount: string) => {
+    const channelStatus = findStatusForMount(rawPayload, mount)
+    return channelStatus?.title || null
+  }, [rawPayload])
 
   useEffect(() => {
     setRuntimeBaseUrl(resolveBaseUrl())
@@ -205,8 +252,7 @@ const App = () => {
       }
 
       const payload = (await response.json()) as IcecastPayload
-      const parsed = extractStatus(payload)
-      setStatus(parsed)
+      setRawPayload(payload)
       setLastUpdated(new Date())
       setError(null)
       hasLoadedOnce.current = true
@@ -247,6 +293,7 @@ const App = () => {
     }
   }, [])
 
+  // When changing channel, pause player and load new source
   useEffect(() => {
     const player = audioRef.current
     if (!player) return
@@ -255,7 +302,7 @@ const App = () => {
     player.load()
     setIsPlaying(false)
     setPlaybackSeconds(0)
-  }, [status?.listenUrl])
+  }, [selectedChannel.mount])
 
   const formattedStart = useMemo(() => {
     if (!status?.streamStartIso) return null
@@ -267,7 +314,14 @@ const App = () => {
 
   const liveDuration = useMemo(() => formatLiveDuration(status?.streamStartIso ?? null), [status?.streamStartIso, liveClock])
 
-  const streamDisplayUrl = useMemo(() => (runtimeBaseUrl ? `${runtimeBaseUrl}/stream` : ''), [runtimeBaseUrl])
+  const streamDisplayUrl = useMemo(() => {
+    const cleanMount = selectedChannel.mount.startsWith('/') ? selectedChannel.mount : `/${selectedChannel.mount}`
+    return runtimeBaseUrl ? `${runtimeBaseUrl}${cleanMount}` : ''
+  }, [runtimeBaseUrl, selectedChannel.mount])
+
+  const streamPlayUrl = useMemo(() => {
+    return status?.listenUrl || `/api/icecast-stream?mount=${encodeURIComponent(selectedChannel.mount)}`
+  }, [status?.listenUrl, selectedChannel.mount])
 
   const updatedAtText = useMemo(() => {
     if (!lastUpdated) return 'Syncing data'
@@ -276,8 +330,8 @@ const App = () => {
 
   const handleTogglePlayback = async () => {
     const player = audioRef.current
-    if (!player || !status?.listenUrl) {
-      setError('Unable to locate a playable stream URL.')
+    if (!player) {
+      setError('Unable to locate an audio player.')
       return
     }
 
@@ -321,7 +375,6 @@ const App = () => {
         throw new Error(data.error || `Command failed (${response.status})`)
       }
 
-      // Refresh status after a short delay to get the new track info
       setTimeout(() => {
         refreshStatus()
       }, 500)
@@ -332,6 +385,8 @@ const App = () => {
       setIsSkipping(false)
     }
   }
+
+  const isLive = !!status
 
   return (
     <div className="app-shell">
@@ -344,97 +399,138 @@ const App = () => {
         </p>
       </header>
 
-      <section className="panel now-playing">
-        <div className="now-playing__stack">
-          <span className="chip live" aria-live="polite">
-            {isPlaying ? 'Streaming now' : 'Monitoring'}
-          </span>
-          <p className="label">Now Playing</p>
-          <h2>{status?.title ?? 'Retrieving the latest metadata...'}</h2>
+      <div className="main-layout">
+        {/* Stations Sidebar */}
+        <section className="panel stations-panel">
+          <h3 className="section-title">Stations</h3>
+          <div className="stations-list">
+            {channels.map((chan) => {
+              const isChanActive = selectedChannel.mount === chan.mount
+              const songTitle = getChannelSongTitle(chan.mount)
+              const isChanLive = !!songTitle
 
-          <div className="timing" aria-live="polite">
-            <div>
-              <span className="timing-label">Stream Started</span>
-              <p>{formattedStart ?? 'Checking...'}</p>
-            </div>
-            <div>
-              <span className="timing-label">On Air</span>
-              <p>{liveDuration ?? '00m'}</p>
-            </div>
+              return (
+                <button
+                  key={chan.mount}
+                  className={`station-card ${isChanActive ? 'active' : ''} ${isChanLive ? 'live' : 'offline'}`}
+                  onClick={() => setSelectedChannel(chan)}
+                >
+                  <div className="station-card__header">
+                    <span className="station-name">{chan.name}</span>
+                    <span className="station-badge">
+                      {isChanLive ? 'LIVE' : 'OFFLINE'}
+                    </span>
+                  </div>
+                  <p className="station-song">
+                    {songTitle || 'Offline / Not Broadcasting'}
+                  </p>
+                </button>
+              )
+            })}
           </div>
-        </div>
+        </section>
 
-        <div className="control-cluster">
-          <div className="track-controls">
-            <button
-              className="primary-control"
-              onClick={handleTogglePlayback}
-              disabled={!status?.listenUrl || loading}
-            >
-              {isPlaying ? `Pause (${formatPlaybackTime(playbackSeconds)})` : 'Play Live'}
-            </button>
-            <button
-              className="track-control-btn"
-              onClick={handleNextTrack}
-              disabled={isSkipping || loading}
-              title="Next Track"
-              aria-label="Next Track"
-            >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z"/>
-              </svg>
-            </button>
-          </div>
-          <button className="secondary-control" onClick={handleManualRefresh} disabled={loading || isSkipping}>
-            {isSkipping ? 'Switching...' : 'Refresh'}
-          </button>
-        </div>
+        {/* Player & Diagnostics Container */}
+        <div className="content-stack">
+          <section className="panel now-playing">
+            <div className="now-playing__stack">
+              <span className={`chip ${isLive ? 'live' : 'offline-chip'}`} aria-live="polite">
+                {isLive ? (isPlaying ? 'Streaming now' : 'Monitoring') : 'Offline'}
+              </span>
+              <p className="label">Now Playing — {selectedChannel.name}</p>
+              <h2>
+                {isLive 
+                  ? (status?.title || 'Retrieving the latest metadata...') 
+                  : 'This station is currently offline.'}
+              </h2>
 
-        <audio
-          ref={audioRef}
-          src={status?.listenUrl ?? undefined}
-          preload="none"
-          crossOrigin="anonymous"
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onEnded={() => setIsPlaying(false)}
-          onTimeUpdate={(event) => setPlaybackSeconds(event.currentTarget.currentTime)}
-        />
-      </section>
+              <div className="timing" aria-live="polite">
+                <div>
+                  <span className="timing-label">Stream Started</span>
+                  <p>{isLive ? (formattedStart ?? 'Checking...') : '—'}</p>
+                </div>
+                <div>
+                  <span className="timing-label">On Air</span>
+                  <p>{isLive ? (liveDuration ?? '00m') : '—'}</p>
+                </div>
+              </div>
+            </div>
 
-      <section className="panel diagnostics">
-        <div className="stat-grid">
-          <article className="stat-card">
-            <p className="stat-label">Stream URL</p>
-            {streamDisplayUrl ? (
-              <a href={streamDisplayUrl} target="_blank" rel="noreferrer" className="stat-value">
-                {streamDisplayUrl}
-              </a>
-            ) : (
-              <p className="stat-value muted">Configure ICECAST_BASE_URL to show this link.</p>
+            <div className="control-cluster">
+              <div className="track-controls">
+                <button
+                  className="primary-control"
+                  onClick={handleTogglePlayback}
+                  disabled={loading}
+                >
+                  {!isLive 
+                    ? 'Station Offline' 
+                    : (isPlaying ? `Pause (${formatPlaybackTime(playbackSeconds)})` : 'Play Live')}
+                </button>
+                <button
+                  className="track-control-btn"
+                  onClick={handleNextTrack}
+                  disabled={isSkipping || loading || !isLive}
+                  title="Next Track"
+                  aria-label="Next Track"
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z"/>
+                  </svg>
+                </button>
+              </div>
+              <button className="secondary-control" onClick={handleManualRefresh} disabled={loading || isSkipping}>
+                {isSkipping ? 'Switching...' : 'Refresh'}
+              </button>
+            </div>
+
+            <audio
+              ref={audioRef}
+              src={streamPlayUrl}
+              preload="none"
+              crossOrigin="anonymous"
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onEnded={() => setIsPlaying(false)}
+              onTimeUpdate={(event) => setPlaybackSeconds(event.currentTarget.currentTime)}
+            />
+          </section>
+
+          <section className="panel diagnostics">
+            <div className="stat-grid">
+              <article className="stat-card">
+                <p className="stat-label">Stream URL</p>
+                {streamDisplayUrl ? (
+                  <a href={streamDisplayUrl} target="_blank" rel="noreferrer" className="stat-value">
+                    {streamDisplayUrl}
+                  </a>
+                ) : (
+                  <p className="stat-value muted">Configure ICECAST_BASE_URL to show this link.</p>
+                )}
+              </article>
+              <article className="stat-card">
+                <p className="stat-label">Last Sync</p>
+                <p className="stat-value">{updatedAtText}</p>
+              </article>
+              <article className="stat-card">
+                <p className="stat-label">Status</p>
+                <p className="stat-value">{loading ? 'Loading…' : (isLive ? 'Active' : 'Offline')}</p>
+              </article>
+            </div>
+
+            {loading && (
+              <p className="status-line" aria-live="polite">
+                Fetching Icecast status...
+              </p>
             )}
-          </article>
-          <article className="stat-card">
-            <p className="stat-label">Last Sync</p>
-            <p className="stat-value">{updatedAtText}</p>
-          </article>
-          <article className="stat-card">
-            <p className="stat-label">Status</p>
-            <p className="stat-value">{loading ? 'Loading…' : 'Ready'}</p>
-          </article>
+            {error && (
+              <p className="status-line error" role="alert">
+                {error}
+              </p>
+            )}
+          </section>
         </div>
-
-        {loading && (
-          <p className="status-line" aria-live="polite">
-            Fetching Icecast status...
-          </p>
-        )}
-        {error && (
-          <p className="status-line error" role="alert">
-            {error}
-          </p>
-        )}
-      </section>
+      </div>
     </div>
   )
 }

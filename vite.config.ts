@@ -30,7 +30,11 @@ export default defineConfig(({ mode }) => {
         '/api/icecast-stream': {
           target: upstream,
           changeOrigin: true,
-          rewrite: () => '/stream',
+          rewrite: (path: string) => {
+            const url = new URL(path, 'http://localhost')
+            const mount = url.searchParams.get('mount') || 'stream'
+            return mount.startsWith('/') ? mount : `/${mount}`
+          },
           secure: false,
         },
       }
@@ -40,6 +44,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       'import.meta.env.ICECAST_BASE_URL': JSON.stringify(upstream ?? ''),
+      'import.meta.env.ICECAST_CHANNELS': JSON.stringify(env.ICECAST_CHANNELS ?? ''),
     },
     server: proxyConfig
       ? {

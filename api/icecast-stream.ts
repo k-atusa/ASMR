@@ -1,7 +1,8 @@
 import { Readable } from 'node:stream'
 
-const fetchIcecastStream = async (baseUrl: string, userAgent: string | undefined) => {
-  const target = new URL('/stream', baseUrl)
+const fetchIcecastStream = async (baseUrl: string, mount: string, userAgent: string | undefined) => {
+  const cleanMount = mount.startsWith('/') ? mount : `/${mount}`
+  const target = new URL(cleanMount, baseUrl)
   return fetch(target.toString(), {
     headers: userAgent ? { 'user-agent': userAgent } : undefined,
   })
@@ -14,8 +15,11 @@ export default async function handler(req: any, res: any) {
     return
   }
 
+  const url = new URL(req.url, 'http://localhost')
+  const mount = req.query?.mount || url.searchParams.get('mount') || 'stream'
+
   try {
-    const response = await fetchIcecastStream(upstreamBase, req.headers['user-agent'] as string | undefined)
+    const response = await fetchIcecastStream(upstreamBase, mount as string, req.headers['user-agent'] as string | undefined)
     res.status(response.status)
 
     response.headers.forEach((value, key) => {
@@ -35,7 +39,7 @@ export default async function handler(req: any, res: any) {
       return
     }
 
-    Readable.fromWeb(response.body as unknown as ReadableStream).pipe(res)
+    Readable.fromWeb(response.body as any).pipe(res)
   } catch (error) {
     console.error('[api/icecast-stream] upstream request failed', error)
     res.status(502).json({ error: 'Unable to reach the Icecast stream endpoint.' })

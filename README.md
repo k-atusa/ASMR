@@ -22,9 +22,10 @@ To run the frontend locally:
 2. **Configure Environment Variables**
    Create a `.env` file in the root directory (you can duplicate `.env.example`):
    ```env
-   ICECAST_BASE_URL=https://radio.example.com:7000
+   ICECAST_BASE_URL=https://radio.katusa.space
+   ICECAST_CHANNELS=club.mp3:Club,china.mp3:China,edm.mp3:EDM,jpop.mp3:J-Pop,kpop.mp3:K-Pop,pop.mp3:Pop
    ```
-   *Note: `ICECAST_BASE_URL` must be the public origin of your Icecast server. The Vite development server uses this to configure the local api proxies.*
+   *Note: `ICECAST_BASE_URL` is the public origin of your Icecast server. `ICECAST_CHANNELS` defines the available mounts and their display names (format: `mount:DisplayName`, comma-separated).*
 
 3. **Start the Development Server**
    ```bash
@@ -39,7 +40,7 @@ To run the frontend locally:
 The application is optimized for deployment on Vercel:
 
 1. **Set Environment Variables**
-   Set `ICECAST_BASE_URL` in the Vercel dashboard (**Project Settings** → **Environment Variables**). This is the only variable the serverless functions need.
+   Configure both `ICECAST_BASE_URL` and `ICECAST_CHANNELS` in the Vercel dashboard (**Project Settings** → **Environment Variables**).
 
 2. **Serverless Functions API**
    The frontend requests are handled by serverless functions in the `api/` directory. They proxy your Icecast server using the environment variable, preventing any CORS issues. No custom `vercel.json` rewrite configuration is required.
