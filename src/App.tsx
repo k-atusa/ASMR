@@ -201,6 +201,16 @@ const formatLiveDuration = (iso: string | null): string | null => {
   return `${minutes}m`
 }
 
+const formatPlaybackTime = (seconds: number): string => {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0')
+  const s = Math.floor(seconds % 60).toString().padStart(2, '0')
+  if (h > 0) {
+    return `${h.toString().padStart(2, '0')}:${m}:${s}`
+  }
+  return `${m}:${s}`
+}
+
 const MarqueeText = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const textRef = useRef<HTMLSpanElement>(null)
@@ -276,6 +286,11 @@ const App = () => {
   const [selectedChannel, setSelectedChannel] = useState<{ mount: string; name: string } | null>(null)
   const [isClosing, setIsClosing] = useState(false)
   const [nowPlayingTitle, setNowPlayingTitle] = useState<string | null>(null)
+  const [playbackTime, setPlaybackTime] = useState(0)
+
+  useEffect(() => {
+    setPlaybackTime(0)
+  }, [selectedChannel?.mount])
 
   useEffect(() => {
     if (!selectedChannel) {
@@ -418,6 +433,7 @@ const App = () => {
     }
     setIsPlaying(false)
     setIsClosing(true)
+    setPlaybackTime(0)
   }
 
   const handleTogglePlayback = async () => {
@@ -453,6 +469,11 @@ const App = () => {
             asmr
           </span>
           <div className="flex items-center gap-4">
+            {globalUptime && (
+              <span className="font-mono text-[10px] text-neutral-400 dark:text-neutral-500 mr-1 select-none">
+                live: {globalUptime}
+              </span>
+            )}
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               className="font-mono text-[10px] text-neutral-500 hover:text-foreground dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors cursor-pointer"
@@ -469,13 +490,6 @@ const App = () => {
             </a>
           </div>
         </header>
-
-        {/* Stations Header with Uptime */}
-        {globalUptime && (
-          <div className="flex justify-end text-[10px] font-mono text-neutral-400 dark:text-neutral-500 px-3 -mb-3">
-            <span>live: {globalUptime}</span>
-          </div>
-        )}
 
         {/* Playlist / Stations Tracklist (Always visible) */}
         <section className={`flex flex-col ${selectedChannel ? 'pb-32' : 'pb-8'}`}>
@@ -552,9 +566,14 @@ const App = () => {
               <MarqueeText className="text-[13px] font-semibold tracking-tight leading-tight">
                 {isLive ? (nowPlayingTitle || status?.title || selectedChannel.name) : 'offline'}
               </MarqueeText>
-              <span className="text-[11px] text-muted-foreground truncate mt-0.5 tracking-tight font-medium">
-                {selectedChannel.name.toLowerCase()}
-              </span>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-0.5 tracking-tight font-medium min-w-0">
+                <span className="truncate">{selectedChannel.name.toLowerCase()}</span>
+                {playbackTime > 0 && (
+                  <span className="font-mono text-[10px] tabular-nums shrink-0 ml-2">
+                    {formatPlaybackTime(playbackTime)}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Controls */}
@@ -579,6 +598,7 @@ const App = () => {
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onEnded={() => setIsPlaying(false)}
+          onTimeUpdate={(e) => setPlaybackTime(e.currentTarget.currentTime)}
         />
       )}
     </div>
