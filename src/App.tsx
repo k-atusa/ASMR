@@ -629,7 +629,6 @@ const App = () => {
           ref={audioRef}
           src={streamPlayUrl}
           preload="none"
-          crossOrigin="anonymous"
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           onEnded={() => setIsPlaying(false)}
