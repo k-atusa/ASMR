@@ -39,6 +39,11 @@ export default defineConfig(({ mode }) => {
           },
           secure: false,
         },
+        '/api/nowplaying': {
+          target: upstream,
+          changeOrigin: true,
+          secure: false,
+        },
       }
     : undefined
 

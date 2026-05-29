@@ -228,6 +228,39 @@ const App = () => {
 
   const [selectedChannel, setSelectedChannel] = useState<{ mount: string; name: string } | null>(null)
   const [isClosing, setIsClosing] = useState(false)
+  const [nowPlayingTitle, setNowPlayingTitle] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!selectedChannel) {
+      setNowPlayingTitle(null)
+      return
+    }
+
+    const channelName = selectedChannel.mount.replace(/\.[^/.]+$/, "")
+    const controller = new AbortController()
+
+    const fetchNowPlaying = async () => {
+      try {
+        const res = await fetch(`/api/nowplaying/${channelName}`, { signal: controller.signal })
+        if (res.ok) {
+          const data = await res.json()
+          setNowPlayingTitle(data.title || null)
+        } else {
+          setNowPlayingTitle(null)
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    fetchNowPlaying()
+    const intervalId = window.setInterval(fetchNowPlaying, 10000)
+
+    return () => {
+      controller.abort()
+      window.clearInterval(intervalId)
+    }
+  }, [selectedChannel])
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -454,7 +487,7 @@ const App = () => {
             {/* Track Info */}
             <div className="flex-col flex flex-1 min-w-0 justify-center">
               <span className="text-[13px] font-semibold truncate tracking-tight leading-tight">
-                {isLive ? (status?.title || selectedChannel.name) : 'offline'}
+                {isLive ? (nowPlayingTitle || status?.title || selectedChannel.name) : 'offline'}
               </span>
               <span className="text-[11px] text-muted-foreground truncate mt-0.5 tracking-tight font-medium">
                 {selectedChannel.name} {isLive && liveDuration ? `• live: ${liveDuration}` : ''}
