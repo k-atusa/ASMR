@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import './App.css'
+import { SkipForward, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 declare global {
   interface Window {
@@ -324,7 +325,7 @@ const App = () => {
   }, [status?.listenUrl, selectedChannel.mount])
 
   const updatedAtText = useMemo(() => {
-    if (!lastUpdated) return 'Syncing data'
+    if (!lastUpdated) return '—'
     return formatClockTime(lastUpdated)
   }, [lastUpdated])
 
@@ -389,148 +390,172 @@ const App = () => {
   const isLive = !!status
 
   return (
-    <div className="app-shell">
-      <header className="masthead">
-        <p className="eyebrow">WEB RADIO</p>
-        <h1>Icecast Live Monitor</h1>
-        <p className="lede">
-          Keep tabs on the latest Icecast metadata, see when each broadcast went live, and jump into the stream with a
-          single click.
-        </p>
-      </header>
+    <div className="min-h-screen bg-background text-foreground selection:bg-neutral-800 selection:text-white font-sans antialiased flex flex-col justify-center">
+      {/* Hyper-minimal Centered Device Frame */}
+      <div className="w-full max-w-[500px] mx-auto px-6 py-12 flex flex-col gap-10">
+        
+        {/* Simple Lowercase Logo */}
+        <header className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-900 pb-4">
+          <span className="font-mono text-sm tracking-[0.2em] font-semibold lowercase">
+            asmr
+          </span>
+          <span className="text-[10px] font-mono text-neutral-400 dark:text-neutral-600">
+            v2.0.0
+          </span>
+        </header>
 
-      <div className="main-layout">
-        {/* Stations Sidebar */}
-        <section className="panel stations-panel">
-          <h3 className="section-title">Stations</h3>
-          <div className="stations-list">
-            {channels.map((chan) => {
-              const isChanActive = selectedChannel.mount === chan.mount
-              const songTitle = getChannelSongTitle(chan.mount)
-              const isChanLive = !!songTitle
+        {/* Playlist / Stations Tracklist */}
+        <section className="flex flex-col gap-2">
+          {channels.map((chan, index) => {
+            const isSelected = selectedChannel.mount === chan.mount
+            const songTitle = getChannelSongTitle(chan.mount)
+            const isChanLive = !!songTitle
 
-              return (
-                <button
-                  key={chan.mount}
-                  className={`station-card ${isChanActive ? 'active' : ''} ${isChanLive ? 'live' : 'offline'}`}
-                  onClick={() => setSelectedChannel(chan)}
-                >
-                  <div className="station-card__header">
-                    <span className="station-name">{chan.name}</span>
-                    <span className="station-badge">
-                      {isChanLive ? 'LIVE' : 'OFFLINE'}
+            return (
+              <button
+                key={chan.mount}
+                onClick={() => setSelectedChannel(chan)}
+                className="w-full flex items-baseline justify-between py-2.5 border-b border-neutral-100 dark:border-neutral-900/60 group text-left transition-colors duration-100"
+              >
+                <div className="flex items-baseline gap-4 min-w-0">
+                  <span className="font-mono text-[11px] text-neutral-400 dark:text-neutral-600">
+                    {(index + 1).toString().padStart(2, '0')}
+                  </span>
+                  <span className={`text-sm tracking-tight transition-colors ${
+                    isSelected 
+                      ? 'font-medium text-foreground' 
+                      : 'text-neutral-400 hover:text-foreground dark:text-neutral-500 dark:hover:text-neutral-300'
+                  }`}>
+                    {chan.name.toLowerCase()}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-3 min-w-0 pl-4">
+                  {isChanLive && (
+                    <span className="text-[11px] font-mono text-neutral-400 dark:text-neutral-600 truncate max-w-[160px] sm:max-w-[200px]">
+                      {songTitle}
                     </span>
-                  </div>
-                  <p className="station-song">
-                    {songTitle || 'Offline / Not Broadcasting'}
-                  </p>
-                </button>
-              )
-            })}
+                  )}
+                  <span className={`h-1.5 w-1.5 rounded-full shrink-0 transition-all ${
+                    isChanLive 
+                      ? (isSelected ? 'bg-foreground' : 'bg-neutral-300 dark:bg-neutral-700') 
+                      : 'bg-transparent border border-neutral-200 dark:border-neutral-800'
+                  }`} />
+                </div>
+              </button>
+            )
+          })}
+        </section>
+
+        {/* Playback Control Deck */}
+        <section className="py-6 flex flex-col gap-6">
+          <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400 dark:text-neutral-600">
+            <span>
+              {selectedChannel.name.toLowerCase()} / {isLive ? 'online' : 'offline'}
+            </span>
+            {isLive && formattedStart && (
+              <span>
+                started {formattedStart.split(' ')[1]} {liveDuration && `(${liveDuration})`}
+              </span>
+            )}
+          </div>
+
+          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground leading-snug min-h-[4rem] flex items-center">
+            {isLive 
+              ? (status?.title || 'buffering metadata...') 
+              : 'station currently offline'}
+          </h2>
+
+          {/* Minimalist Live Stream Timeline */}
+          {isLive && isPlaying && (
+            <div className="flex items-center gap-4 py-1">
+              <span className="font-mono text-[10px] text-neutral-500 dark:text-neutral-400">
+                {formatPlaybackTime(playbackSeconds)}
+              </span>
+              <div className="h-[1px] flex-1 bg-neutral-100 dark:bg-neutral-900 relative overflow-hidden">
+                <div className="absolute top-0 left-0 h-full w-1/3 bg-neutral-900 dark:bg-neutral-100 animate-pulse" />
+              </div>
+              <span className="font-mono text-[10px] text-neutral-400 dark:text-neutral-600 uppercase tracking-widest">
+                live
+              </span>
+            </div>
+          )}
+
+          {/* Minimal Action Row */}
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={handleTogglePlayback}
+                disabled={!isLive}
+                variant="outline"
+                className="rounded-full border-neutral-200 dark:border-neutral-800 px-6 py-4 font-mono text-xs lowercase hover:bg-neutral-100 dark:hover:bg-neutral-900/60 transition-all"
+              >
+                {isPlaying ? 'pause' : 'play'}
+              </Button>
+
+              {isLive && (
+                <Button
+                  onClick={handleNextTrack}
+                  disabled={isSkipping}
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full text-neutral-400 hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900/60"
+                >
+                  <SkipForward className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+
+            <Button
+              onClick={handleManualRefresh}
+              disabled={loading}
+              variant="ghost"
+              className="font-mono text-xs text-neutral-400 hover:text-foreground dark:text-neutral-600 p-0 h-auto hover:bg-transparent"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
         </section>
 
-        {/* Player & Diagnostics Container */}
-        <div className="content-stack">
-          <section className="panel now-playing">
-            <div className="now-playing__stack">
-              <span className={`chip ${isLive ? 'live' : 'offline-chip'}`} aria-live="polite">
-                {isLive ? (isPlaying ? 'Streaming now' : 'Monitoring') : 'Offline'}
-              </span>
-              <p className="label">Now Playing — {selectedChannel.name}</p>
-              <h2>
-                {isLive 
-                  ? (status?.title || 'Retrieving the latest metadata...') 
-                  : 'This station is currently offline.'}
-              </h2>
+        {/* Global Connection / Status Alert */}
+        {error && (
+          <div className="p-3 border border-neutral-150 dark:border-neutral-900 bg-neutral-50/50 dark:bg-neutral-950/20 text-neutral-500 dark:text-neutral-400 rounded-lg flex items-start gap-3 font-mono text-[11px] leading-relaxed">
+            <span className="h-1.5 w-1.5 rounded-full bg-neutral-400 mt-1.5 shrink-0" />
+            <p>{error}</p>
+          </div>
+        )}
 
-              <div className="timing" aria-live="polite">
-                <div>
-                  <span className="timing-label">Stream Started</span>
-                  <p>{isLive ? (formattedStart ?? 'Checking...') : '—'}</p>
-                </div>
-                <div>
-                  <span className="timing-label">On Air</span>
-                  <p>{isLive ? (liveDuration ?? '00m') : '—'}</p>
-                </div>
-              </div>
-            </div>
+        {/* Clean, Faint Footer */}
+        <footer className="border-t border-neutral-100 dark:border-neutral-900 pt-5 flex items-center justify-between text-[10px] font-mono text-neutral-400 dark:text-neutral-600">
+          <div className="flex items-center gap-1.5">
+            <span>sync {updatedAtText}</span>
+            <span>•</span>
+            <span>{loading ? 'updating' : 'idle'}</span>
+          </div>
+          {streamDisplayUrl && (
+            <a 
+              href={streamDisplayUrl} 
+              target="_blank" 
+              rel="noreferrer"
+              className="hover:text-foreground underline underline-offset-4 hover:decoration-foreground decoration-neutral-300 dark:decoration-neutral-800"
+            >
+              mount: {selectedChannel.mount}
+            </a>
+          )}
+        </footer>
 
-            <div className="control-cluster">
-              <div className="track-controls">
-                <button
-                  className="primary-control"
-                  onClick={handleTogglePlayback}
-                  disabled={loading}
-                >
-                  {!isLive 
-                    ? 'Station Offline' 
-                    : (isPlaying ? `Pause (${formatPlaybackTime(playbackSeconds)})` : 'Play Live')}
-                </button>
-                <button
-                  className="track-control-btn"
-                  onClick={handleNextTrack}
-                  disabled={isSkipping || loading || !isLive}
-                  title="Next Track"
-                  aria-label="Next Track"
-                >
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                    <path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z"/>
-                  </svg>
-                </button>
-              </div>
-              <button className="secondary-control" onClick={handleManualRefresh} disabled={loading || isSkipping}>
-                {isSkipping ? 'Switching...' : 'Refresh'}
-              </button>
-            </div>
-
-            <audio
-              ref={audioRef}
-              src={streamPlayUrl}
-              preload="none"
-              crossOrigin="anonymous"
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              onEnded={() => setIsPlaying(false)}
-              onTimeUpdate={(event) => setPlaybackSeconds(event.currentTarget.currentTime)}
-            />
-          </section>
-
-          <section className="panel diagnostics">
-            <div className="stat-grid">
-              <article className="stat-card">
-                <p className="stat-label">Stream URL</p>
-                {streamDisplayUrl ? (
-                  <a href={streamDisplayUrl} target="_blank" rel="noreferrer" className="stat-value">
-                    {streamDisplayUrl}
-                  </a>
-                ) : (
-                  <p className="stat-value muted">Configure ICECAST_BASE_URL to show this link.</p>
-                )}
-              </article>
-              <article className="stat-card">
-                <p className="stat-label">Last Sync</p>
-                <p className="stat-value">{updatedAtText}</p>
-              </article>
-              <article className="stat-card">
-                <p className="stat-label">Status</p>
-                <p className="stat-value">{loading ? 'Loading…' : (isLive ? 'Active' : 'Offline')}</p>
-              </article>
-            </div>
-
-            {loading && (
-              <p className="status-line" aria-live="polite">
-                Fetching Icecast status...
-              </p>
-            )}
-            {error && (
-              <p className="status-line error" role="alert">
-                {error}
-              </p>
-            )}
-          </section>
-        </div>
       </div>
+
+      <audio
+        ref={audioRef}
+        src={streamPlayUrl}
+        preload="none"
+        crossOrigin="anonymous"
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => setIsPlaying(false)}
+        onTimeUpdate={(event) => setPlaybackSeconds(event.currentTarget.currentTime)}
+      />
     </div>
   )
 }
