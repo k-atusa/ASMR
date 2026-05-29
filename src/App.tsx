@@ -426,8 +426,8 @@ const App = () => {
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-neutral-800 selection:text-white font-sans antialiased flex flex-col justify-center transition-colors duration-200">
       {/* Hyper-minimal Centered Device Frame */}
-      <div 
-        key={selectedChannel ? selectedChannel.mount : 'list'} 
+      <div
+        key={selectedChannel ? selectedChannel.mount : 'list'}
         className="w-full max-w-[500px] mx-auto px-6 py-12 flex flex-col gap-10 animate-in fade-in duration-300"
       >
 
@@ -448,13 +448,18 @@ const App = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="font-mono text-[10px] text-neutral-500 hover:text-foreground dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors uppercase cursor-pointer"
+              className="font-mono text-[10px] text-neutral-500 hover:text-foreground dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors cursor-pointer"
             >
               [ {theme === 'dark' ? 'light' : 'dark'} ]
             </button>
-            <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">
-              v3.0.0
-            </span>
+            <a
+              href="https://github.com/k-atusa/asmr"
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-[10px] text-neutral-500 hover:text-foreground dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors"
+            >
+              [ github ]
+            </a>
           </div>
         </header>
 
@@ -487,8 +492,8 @@ const App = () => {
                       </span>
                     )}
                     <span className={`h-1.5 w-1.5 rounded-full shrink-0 transition-all ${isChanLive
-                        ? 'bg-neutral-300 dark:bg-neutral-700'
-                        : 'bg-transparent border border-neutral-200 dark:border-neutral-800'
+                      ? 'bg-neutral-300 dark:bg-neutral-700'
+                      : 'bg-transparent border border-neutral-200 dark:border-neutral-800'
                       }`} />
                   </div>
                 </button>
