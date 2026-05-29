@@ -227,6 +227,7 @@ const App = () => {
   }, [])
 
   const [selectedChannel, setSelectedChannel] = useState<{ mount: string; name: string } | null>(null)
+  const [isClosing, setIsClosing] = useState(false)
 
   useEffect(() => {
     const root = window.document.documentElement
@@ -327,7 +328,7 @@ const App = () => {
       player.load()
     }
     setIsPlaying(false)
-    setSelectedChannel(null)
+    setIsClosing(true)
   }
 
   const handleTogglePlayback = async () => {
@@ -394,7 +395,10 @@ const App = () => {
                 className="w-full border-b border-neutral-100 dark:border-neutral-900/60 last:border-b-0 py-1"
               >
                 <button
-                  onClick={() => setSelectedChannel(chan)}
+                  onClick={() => {
+                    setIsClosing(false)
+                    setSelectedChannel(chan)
+                  }}
                   className={`w-full flex items-center justify-between py-2 px-3 rounded-lg transition-all duration-150 cursor-pointer ${isSelected
                     ? 'bg-neutral-50/50 dark:bg-neutral-900/30'
                     : 'hover:bg-neutral-50/10 dark:hover:bg-neutral-900/10'
@@ -433,7 +437,18 @@ const App = () => {
 
       {/* Floating Mini Player Overlay */}
       {selectedChannel && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[380px] bg-popover text-popover-foreground border border-border rounded-full shadow-lg overflow-hidden animate-in slide-in-from-bottom-8 fade-in duration-300 z-50">
+        <div
+          onAnimationEnd={() => {
+            if (isClosing) {
+              setSelectedChannel(null)
+              setIsClosing(false)
+            }
+          }}
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[380px] bg-popover text-popover-foreground border border-border rounded-full shadow-lg overflow-hidden z-50 ${isClosing
+            ? 'animate-out slide-out-to-bottom-[200px] fade-out duration-400 fill-mode-forwards'
+            : 'animate-in slide-in-from-bottom-[200px] fade-in duration-200'
+            }`}
+        >
           <div className="flex items-center gap-4 py-2.5 px-4">
 
             {/* Track Info */}
