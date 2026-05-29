@@ -436,7 +436,7 @@ const App = () => {
           {selectedChannel ? (
             <button
               onClick={handleGoBack}
-              className="font-mono text-sm tracking-wide font-semibold lowercase cursor-pointer hover:text-neutral-400 dark:hover:text-neutral-500 transition-colors"
+              className="font-mono text-sm tracking-wide font-semibold lowercase cursor-pointer hover:text-neutral-500 dark:hover:text-neutral-400 transition-colors"
             >
               [ back ]
             </button>
@@ -448,11 +448,11 @@ const App = () => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="font-mono text-[10px] text-neutral-400 hover:text-foreground dark:text-neutral-600 dark:hover:text-neutral-300 transition-colors uppercase cursor-pointer"
+              className="font-mono text-[10px] text-neutral-500 hover:text-foreground dark:text-neutral-400 dark:hover:text-neutral-200 transition-colors uppercase cursor-pointer"
             >
               [ {theme === 'dark' ? 'light' : 'dark'} ]
             </button>
-            <span className="text-[10px] font-mono text-neutral-400 dark:text-neutral-600">
+            <span className="text-[10px] font-mono text-neutral-500 dark:text-neutral-400">
               v3.0.0
             </span>
           </div>
@@ -472,17 +472,17 @@ const App = () => {
                   className="w-full flex items-baseline justify-between py-2.5 border-b border-neutral-100 dark:border-neutral-900/60 group text-left transition-colors duration-100 cursor-pointer"
                 >
                   <div className="flex items-baseline gap-4 min-w-0">
-                    <span className="font-mono text-[11px] text-neutral-400 dark:text-neutral-600">
+                    <span className="font-mono text-[11px] text-neutral-500 dark:text-neutral-400">
                       {(index + 1).toString().padStart(2, '0')}
                     </span>
-                    <span className="text-sm tracking-tight text-neutral-400 hover:text-foreground dark:text-neutral-500 dark:hover:text-neutral-300 transition-colors">
+                    <span className="text-sm tracking-tight text-neutral-600 hover:text-foreground dark:text-neutral-300 dark:hover:text-neutral-100 transition-colors">
                       {chan.name.toLowerCase()}
                     </span>
                   </div>
 
                   <div className="flex items-center gap-3 min-w-0 pl-4">
                     {isChanLive && (
-                      <span className="text-[11px] font-mono text-neutral-400 dark:text-neutral-600 truncate max-w-[160px] sm:max-w-[200px]">
+                      <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400 truncate max-w-[160px] sm:max-w-[200px]">
                         {songTitle}
                       </span>
                     )}
@@ -500,11 +500,11 @@ const App = () => {
         {/* Playback Control Deck (Mode 2: Only displayed when a channel has been selected) */}
         {selectedChannel && (
           <section className="py-6 flex flex-col gap-6">
-            <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400 dark:text-neutral-600">
+            <div className="flex items-center justify-between text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
               <span className="flex items-center gap-1.5">
                 <span>{selectedChannel.name.toLowerCase()}</span>
                 <span>/</span>
-                <span className={isLive ? 'text-foreground font-medium' : 'text-neutral-400'}>
+                <span className={isLive ? 'text-foreground font-medium' : 'text-neutral-500 dark:text-neutral-400'}>
                   {isLive ? 'online' : 'offline'}
                 </span>
               </span>
@@ -524,13 +524,13 @@ const App = () => {
             {/* Minimalist Live Stream Timeline */}
             {isLive && isPlaying && (
               <div className="flex items-center gap-4 py-1">
-                <span className="font-mono text-[10px] text-neutral-500 dark:text-neutral-400">
+                <span className="font-mono text-[10px] text-neutral-600 dark:text-neutral-300">
                   {formatPlaybackTime(playbackSeconds)}
                 </span>
                 <div className="h-[1px] flex-1 bg-neutral-100 dark:bg-neutral-900 relative overflow-hidden">
                   <div className="absolute top-0 left-0 h-full w-1/3 bg-neutral-900 dark:bg-neutral-100 animate-pulse" />
                 </div>
-                <span className="font-mono text-[10px] text-neutral-400 dark:text-neutral-600 uppercase tracking-widest">
+                <span className="font-mono text-[10px] text-neutral-500 dark:text-neutral-400 uppercase tracking-widest">
                   live
                 </span>
               </div>
@@ -554,7 +554,7 @@ const App = () => {
                     disabled={isSkipping}
                     variant="ghost"
                     size="icon"
-                    className="rounded-full text-neutral-400 hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900/60 cursor-pointer"
+                    className="rounded-full text-neutral-500 hover:text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900/60 cursor-pointer"
                   >
                     <SkipForward className="h-4 w-4" />
                   </Button>
@@ -565,7 +565,7 @@ const App = () => {
                 onClick={handleManualRefresh}
                 disabled={loading}
                 variant="ghost"
-                className="font-mono text-xs text-neutral-400 hover:text-foreground dark:text-neutral-600 p-0 h-auto hover:bg-transparent cursor-pointer"
+                className="font-mono text-xs text-neutral-500 hover:text-foreground dark:text-neutral-400 p-0 h-auto hover:bg-transparent cursor-pointer"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
               </Button>
@@ -575,7 +575,7 @@ const App = () => {
 
         {/* Global Connection / Status Alert */}
         {error && (
-          <div className="p-3 border border-neutral-150 dark:border-neutral-900 bg-neutral-50/50 dark:bg-neutral-950/20 text-neutral-500 dark:text-neutral-400 rounded-lg flex items-start gap-3 font-mono text-[11px] leading-relaxed animate-in fade-in duration-200">
+          <div className="p-3 border border-neutral-150 dark:border-neutral-900 bg-neutral-50/50 dark:bg-neutral-950/20 text-neutral-600 dark:text-neutral-300 rounded-lg flex items-start gap-3 font-mono text-[11px] leading-relaxed animate-in fade-in duration-200">
             <span className="h-1.5 w-1.5 rounded-full bg-neutral-400 mt-1.5 shrink-0" />
             <p>{error}</p>
           </div>
@@ -583,7 +583,7 @@ const App = () => {
 
         {/* Clean, Faint Footer (Mode 2: Only displayed when a channel has been selected) */}
         {selectedChannel && (
-          <footer className="border-t border-neutral-100 dark:border-neutral-900 pt-5 flex items-center justify-between text-[10px] font-mono text-neutral-400 dark:text-neutral-600">
+          <footer className="border-t border-neutral-100 dark:border-neutral-900 pt-5 flex items-center justify-between text-[10px] font-mono text-neutral-500 dark:text-neutral-400 animate-in fade-in duration-300">
             <div className="flex items-center gap-1.5">
               <span>sync {updatedAtText}</span>
               <span>•</span>
