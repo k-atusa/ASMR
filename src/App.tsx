@@ -79,6 +79,21 @@ const normalizeStreamUrl = (candidate: string | null, mount: string): string => 
       return fallbackUrl
     }
 
+    // Force hostname, port, and protocol to match ICECAST_BASE_URL if configured!
+    const configuredBase = resolveBaseUrl()
+    if (configuredBase) {
+      try {
+        const baseParsed = new URL(configuredBase)
+        if (parsed.hostname === baseParsed.hostname) {
+          parsed.protocol = baseParsed.protocol
+          parsed.host = baseParsed.host
+          parsed.port = baseParsed.port
+        }
+      } catch {
+        // ignore parsing error
+      }
+    }
+
     if (parsed.protocol === 'http:') {
       parsed.protocol = 'https:'
     }
