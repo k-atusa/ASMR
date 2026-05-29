@@ -119,6 +119,42 @@
   gap: 0.75rem;
 }
 
+.track-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.track-control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.track-control-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.track-control-btn:not(:disabled):hover {
+  border-color: var(--accent);
+  background: rgba(61, 242, 200, 0.1);
+  transform: scale(1.05);
+}
+
+.track-control-btn:not(:disabled):active {
+  transform: scale(0.95);
+}
+
 .primary-control,
 .secondary-control {
   border-radius: 999px;
@@ -225,9 +261,17 @@ audio {
     width: 100%;
   }
 
+  .track-controls {
+    width: 100%;
+  }
+
   .primary-control,
   .secondary-control {
     width: 100%;
     text-align: center;
+  }
+
+  .primary-control {
+    flex: 1;
   }
 }

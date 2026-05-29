@@ -3,6 +3,10 @@ services:
     image: d3vle0/asmr:latest
     environment:
       ICECAST_BASE_URL: ${ICECAST_BASE_URL}
+      # Liquidsoap Telnet configuration for track control
+      LIQUIDSOAP_HOST: ${LIQUIDSOAP_HOST:-localhost}
+      LIQUIDSOAP_PORT: ${LIQUIDSOAP_PORT:-1234}
+      LIQUIDSOAP_PASSWORD: ${LIQUIDSOAP_PASSWORD:-}
     ports:
       - "4173:80"
     restart: unless-stopped

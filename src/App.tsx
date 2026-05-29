@@ -23,6 +23,7 @@ const resolveBaseUrl = (): string => {
 }
 const STATUS_URL = '/api/icecast-status'
 const STREAM_FALLBACK_URL = '/api/icecast-stream'
+const CONTROL_URL = '/api/liquidsoap-control'
 
 type MaybeSource = {
   title?: string
@@ -176,6 +177,7 @@ const App = () => {
   const [isPlaying, setIsPlaying] = useState(false)
   const [liveClock, setLiveClock] = useState(() => Date.now())
   const [playbackSeconds, setPlaybackSeconds] = useState(0)
+  const [isSkipping, setIsSkipping] = useState(false)
   const audioRef = useRef<HTMLAudioElement>(null)
   const hasLoadedOnce = useRef(false)
 
@@ -299,6 +301,38 @@ const App = () => {
     refreshStatus()
   }
 
+  const handleNextTrack = async () => {
+    if (isSkipping) return
+
+    setIsSkipping(true)
+    setError(null)
+
+    try {
+      const response = await fetch(CONTROL_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ command: 'skip' }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || `Command failed (${response.status})`)
+      }
+
+      // Refresh status after a short delay to get the new track info
+      setTimeout(() => {
+        refreshStatus()
+      }, 500)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to control playback'
+      setError(message)
+    } finally {
+      setIsSkipping(false)
+    }
+  }
+
   return (
     <div className="app-shell">
       <header className="masthead">
@@ -331,15 +365,28 @@ const App = () => {
         </div>
 
         <div className="control-cluster">
-          <button
-            className="primary-control"
-            onClick={handleTogglePlayback}
-            disabled={!status?.listenUrl || loading}
-          >
-            {isPlaying ? `Pause (${formatPlaybackTime(playbackSeconds)})` : 'Play Live'}
-          </button>
-          <button className="secondary-control" onClick={handleManualRefresh} disabled={loading}>
-            Refresh
+          <div className="track-controls">
+            <button
+              className="primary-control"
+              onClick={handleTogglePlayback}
+              disabled={!status?.listenUrl || loading}
+            >
+              {isPlaying ? `Pause (${formatPlaybackTime(playbackSeconds)})` : 'Play Live'}
+            </button>
+            <button
+              className="track-control-btn"
+              onClick={handleNextTrack}
+              disabled={isSkipping || loading}
+              title="Next Track"
+              aria-label="Next Track"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M6 18l8.5-6L6 6v12zm10-12v12h2V6h-2z"/>
+              </svg>
+            </button>
+          </div>
+          <button className="secondary-control" onClick={handleManualRefresh} disabled={loading || isSkipping}>
+            {isSkipping ? 'Switching...' : 'Refresh'}
           </button>
         </div>
 
