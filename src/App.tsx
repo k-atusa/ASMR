@@ -197,6 +197,49 @@ const formatLiveDuration = (iso: string | null): string | null => {
   return `${minutes}m`
 }
 
+const MarqueeText = ({ children, className = '' }: { children: React.ReactNode; className?: string }) => {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLSpanElement>(null)
+  const [overflowAmount, setOverflowAmount] = useState(0)
+
+  useEffect(() => {
+    const checkOverflow = () => {
+      const container = containerRef.current
+      const text = textRef.current
+      if (container && text) {
+        const overflow = text.offsetWidth - container.offsetWidth
+        setOverflowAmount(overflow > 0 ? overflow + 16 : 0) // Add a little extra padding so it doesn't hug the edge
+      }
+    }
+
+    checkOverflow()
+    // Small delay to ensure fonts have loaded and layout is ready
+    const timer = setTimeout(checkOverflow, 100)
+    window.addEventListener('resize', checkOverflow)
+    return () => {
+      clearTimeout(timer)
+      window.removeEventListener('resize', checkOverflow)
+    }
+  }, [children])
+
+  const duration = Math.max(5, overflowAmount / 15)
+
+  return (
+    <div ref={containerRef} className={`overflow-hidden whitespace-nowrap ${className}`}>
+      <span
+        ref={textRef}
+        className="inline-block"
+        style={{
+          animation: overflowAmount > 0 ? `marquee-bounce ${duration}s linear infinite alternate` : 'none',
+          '--marquee-end': `-${overflowAmount}px`
+        } as React.CSSProperties}
+      >
+        {children}
+      </span>
+    </div>
+  )
+}
+
 const App = () => {
   const [rawPayload, setRawPayload] = useState<IcecastPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -485,10 +528,10 @@ const App = () => {
           <div className="flex items-center gap-4 py-2.5 px-4">
 
             {/* Track Info */}
-            <div className="flex-col flex flex-1 min-w-0 justify-center">
-              <span className="text-[13px] font-semibold truncate tracking-tight leading-tight">
+            <div className="flex-col flex flex-1 min-w-0 justify-center relative mask-edges">
+              <MarqueeText className="text-[13px] font-semibold tracking-tight leading-tight">
                 {isLive ? (nowPlayingTitle || status?.title || selectedChannel.name) : 'offline'}
-              </span>
+              </MarqueeText>
               <span className="text-[11px] text-muted-foreground truncate mt-0.5 tracking-tight font-medium">
                 {selectedChannel.name} {isLive && liveDuration ? `• live: ${liveDuration}` : ''}
               </span>
