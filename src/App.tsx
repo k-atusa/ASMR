@@ -199,9 +199,9 @@ const formatLiveDuration = (iso: string | null): string | null => {
   const minutes = Math.floor((diff % 3600000) / 60000)
 
   if (hours > 0) {
-    return `${hours}h ${minutes}m ago`
+    return `${hours}h ${minutes}m`
   }
-  return `${minutes}m ago`
+  return `${minutes}m`
 }
 
 const formatPlaybackTime = (seconds: number): string => {
@@ -526,7 +526,7 @@ const App = () => {
               </span>
               {isLive && liveDuration && (
                 <span>
-                  {liveDuration}
+                  live: {liveDuration}
                 </span>
               )}
             </div>
