@@ -376,7 +376,9 @@ const App = () => {
 
     if (isPlaying) {
       player.pause()
+      player.load() // Closes connection & empties buffer for true live stop!
       setIsPlaying(false)
+      setPlaybackSeconds(0)
       return
     }
 
@@ -550,7 +552,7 @@ const App = () => {
                   variant="outline"
                   className="rounded-full border-neutral-200 dark:border-neutral-800 px-6 py-4 font-mono text-xs lowercase hover:bg-neutral-100 dark:hover:bg-neutral-900/60 transition-all cursor-pointer"
                 >
-                  {isPlaying ? `pause (${formatPlaybackTime(playbackSeconds)})` : 'play'}
+                  {isPlaying ? `stop (${formatPlaybackTime(playbackSeconds)})` : 'play'}
                 </Button>
 
                 {isLive && (
