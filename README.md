@@ -4,139 +4,45 @@ ASMR is a React + TypeScript single-page UI that monitors an Icecast server, sho
 
 ---
 
-## Icecast Installation & Streaming Setup
+## Prerequisites
 
-The frontend expects a running Icecast + Liquidsoap stack. You can reproduce the stack outlined in [devleo.us/posts/icecast](https://devleo.us/posts/icecast/) with the following steps.
-
-### 1. Project tree
-
-```
-.
-├── config
-│   ├── icecast.xml
-│   └── liquidsoap.liq
-├── docker-compose.yml
-├── logs
-└── music
-		└── *.mp3
-```
-
-- `config/icecast.xml`: Icecast server configuration, authentication, and limits.
-- `config/liquidsoap.liq`: Liquidsoap AutoDJ script.
-- `music/`: Folder of MP3 assets that Liquidsoap will rotate through.
-- `logs/`: Captures Liquidsoap run logs.
-
-### 2. Compose stack
-
-Create `docker-compose.yml`:
-
-```yaml
-services:
-	icecast2:
-		image: pltnk/icecast2
-		container_name: icecast2
-		restart: always
-		ports:
-			- 7000:8000
-		volumes:
-			- ./config/icecast.xml:/etc/icecast2/icecast.xml
-
-	liquidsoap:
-		image: savonet/liquidsoap:v2.2.3
-		container_name: liquidsoap-player
-		command: liquidsoap /config/liquidsoap.liq
-		restart: unless-stopped
-		depends_on:
-			- icecast2
-		volumes:
-			- ./config/liquidsoap.liq:/config/liquidsoap.liq
-			- ./music:/music
-			- ./logs:/var/log/liquidsoap
-```
-
-### 3. Icecast config
-
-`config/icecast.xml` closely follows the blog article. Customize the highlighted areas for your deployment:
-
-- `<location>` / `<admin>`: Informational metadata.
-- `<limits>`: Max clients, sources, and buffer sizes.
-- `<authentication>`: Set unique credentials for `admin-user`, `admin-password`, `source-password`, and `relay-password`. Liquidsoap will use `source-password`.
-- `<listen-socket>` / `<hostname>`: Ensure host/port match your networking needs (compose uses internal 8000, exposed on 7000).
-- `<paths>` / `<logging>`: Keep defaults unless you need custom directories.
-
-### 4. Liquidsoap script
-
-Use this baseline for `config/liquidsoap.liq`:
-
-```liquidsoap
-set("log.file", "/var/log/liquidsoap/liquidsoap.log")
-set("log.level", 3)
-
-def silence()
-	blank(duration=10.)
-end
-
-radio = playlist(mode="random", reload=3600, "/music")
-radio = fallback(track_sensitive=false, [radio, silence()])
-
-output.icecast(
-	%mp3,
-	host = "icecast2",
-	port = 8000,
-	password = "<source-password>",
-	mount = "stream",
-	name = "example radio",
-	description = "An example radio station",
-	genre = "Various",
-	radio
-)
-```
-
-Update `password`, `mount`, `name`, `description`, and `genre` to suit your station brand. Copy a few MP3 files into `music/`.
-
-### 5. Launch & verify
-
-```bash
-docker compose up -d
-```
-
-- Visit `http://<server>:7000` → Icecast admin UI (`admin-user`/`admin-password`).
-- Confirm `/stream` mount appears under **Mounts**.
-- Test playback at `http://<server>:7000/stream`.
-
-Once the stream is reachable, the ASMR frontend can proxy `/api/icecast-status` and `/api/icecast-stream` against this origin.
+The frontend expects a running Icecast + Liquidsoap stack. For details on setting up your streaming server, you can refer to the guide at [devleo.us/posts/icecast](https://devleo.us/posts/icecast/).
 
 ---
 
-## Running the ASMR Frontend (Docker Compose)
+## Local Development
 
-1. **Environment variable**
-	 - Duplicate `.env.example` as `.env` for local development, and set `ICECAST_BASE_URL` to the public origin of your Icecast server (e.g., `https://radio.example.com:7000`). During `npm run dev` this powers the Vite proxy; inside Docker it is injected at runtime and also configures the reverse proxy.
+To run the frontend locally:
 
-2. **Start the published image**
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-	 ```bash
-	 docker compose up -d
-	 ```
+2. **Configure Environment Variables**
+   Create a `.env` file in the root directory (you can duplicate `.env.example`):
+   ```env
+   ICECAST_BASE_URL=https://radio.example.com:7000
+   ```
+   *Note: `ICECAST_BASE_URL` must be the public origin of your Icecast server. The Vite development server uses this to configure the local api proxies.*
 
-	 The compose file pulls `d3vle0/asmr:latest`. On launch the entrypoint writes `/usr/share/nginx/html/env.js` and regenerates the Nginx config so `/api/icecast-status` and `/api/icecast-stream` (plus the legacy `/icecast-*` paths) are proxied to your Icecast host—no CORS issues, no need to rebuild.
+3. **Start the Development Server**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-3. **Use the dashboard**
-	 - Browse to http://localhost:4173.
-	 - The UI polls `/api/icecast-status` for metadata and plays audio from `/api/icecast-stream`, both proxied to `ICECAST_BASE_URL`.
-
-4. **Shutdown**
-
-	 ```bash
-	 docker compose down
-	 ```
-
-For local development outside Docker, you can still run `npm install` followed by `npm run dev`, but `ICECAST_BASE_URL` must be present in your shell environment so the Vite dev server proxies resolve correctly.
-
+---
 
 ## Deploying to Vercel
 
-1. Set `ICECAST_BASE_URL` in the Vercel dashboard (Project Settings → Environment Variables). This is the only variable the Serverless Functions need.
-2. The build output stays static, but `/api/icecast-status` and `/api/icecast-stream` are handled by the Vercel Functions in `/api`. They proxy your Icecast server using the environment variable, so no `vercel.json` rewrites are required.
-3. The frontend already calls the `/api` paths, so once the deployment finishes, visiting your Vercel URL will show live metadata and playback without CORS errors.
+The application is optimized for deployment on Vercel:
 
+1. **Set Environment Variables**
+   Set `ICECAST_BASE_URL` in the Vercel dashboard (**Project Settings** → **Environment Variables**). This is the only variable the serverless functions need.
+
+2. **Serverless Functions API**
+   The frontend requests are handled by serverless functions in the `api/` directory. They proxy your Icecast server using the environment variable, preventing any CORS issues. No custom `vercel.json` rewrite configuration is required.
+
+3. **Deployment**
+   Once deployment is complete, visiting your Vercel URL will automatically show live metadata and support stream playback.
