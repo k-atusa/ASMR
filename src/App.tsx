@@ -225,7 +225,7 @@ const MarqueeText = ({ children, className = '' }: { children: React.ReactNode; 
   const duration = Math.max(5, overflowAmount / 15)
 
   return (
-    <div ref={containerRef} className={`overflow-hidden whitespace-nowrap ${className}`}>
+    <div ref={containerRef} className={`overflow-hidden whitespace-nowrap ${overflowAmount > 0 ? 'mask-edges' : ''} ${className}`}>
       <span
         ref={textRef}
         className="inline-block"
@@ -390,7 +390,16 @@ const App = () => {
     })
   }, [selectedChannel?.mount])
 
-  const liveDuration = useMemo(() => formatLiveDuration(status?.streamStartIso ?? null), [status?.streamStartIso, liveClock])
+  const globalUptime = useMemo(() => {
+    if (!rawPayload) return null
+    for (const chan of channels) {
+      const chanStatus = findStatusForMount(rawPayload, chan.mount)
+      if (chanStatus?.streamStartIso) {
+        return formatLiveDuration(chanStatus.streamStartIso)
+      }
+    }
+    return null
+  }, [rawPayload, channels, liveClock])
 
   const streamPlayUrl = useMemo(() => {
     if (!selectedChannel) return ''
@@ -456,6 +465,14 @@ const App = () => {
             </a>
           </div>
         </header>
+
+        {/* Stations Header with Uptime */}
+        {globalUptime && (
+          <div className="flex items-center justify-between text-[11px] font-mono text-neutral-400 dark:text-neutral-500 border-b border-neutral-100 dark:border-neutral-900 pb-1.5 px-3">
+            <span className="tracking-widest lowercase">stations</span>
+            <span>live: {globalUptime}</span>
+          </div>
+        )}
 
         {/* Playlist / Stations Tracklist (Always visible) */}
         <section className={`flex flex-col ${selectedChannel ? 'pb-32' : 'pb-8'}`}>
@@ -528,12 +545,12 @@ const App = () => {
           <div className="flex items-center gap-4 py-2.5 px-4">
 
             {/* Track Info */}
-            <div className="flex-col flex flex-1 min-w-0 justify-center relative mask-edges">
+            <div className="flex-col flex flex-1 min-w-0 justify-center relative">
               <MarqueeText className="text-[13px] font-semibold tracking-tight leading-tight">
                 {isLive ? (nowPlayingTitle || status?.title || selectedChannel.name) : 'offline'}
               </MarqueeText>
               <span className="text-[11px] text-muted-foreground truncate mt-0.5 tracking-tight font-medium">
-                {selectedChannel.name} {isLive && liveDuration ? `• live: ${liveDuration}` : ''}
+                {selectedChannel.name.toLowerCase()}
               </span>
             </div>
 
