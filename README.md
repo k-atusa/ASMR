@@ -23,7 +23,7 @@ To run the frontend locally:
    Create a `.env` file in the root directory (you can duplicate `.env.example`):
    ```env
    ICECAST_BASE_URL=https://radio.katusa.space
-   ICECAST_CHANNELS=club.mp3:Club,china.mp3:China,edm.mp3:EDM,jpop.mp3:J-Pop,kpop.mp3:K-Pop,pop.mp3:Pop
+   ICECAST_CHANNELS=club.mp3:Club,china.mp3:China,car.mp3:Car,edm.mp3:EDM,jpop.mp3:J-Pop,kpop.mp3:K-Pop,pop.mp3:Pop
    ```
    *Note: `ICECAST_BASE_URL` is the public origin of your Icecast server. `ICECAST_CHANNELS` defines the available mounts and their display names (format: `mount:DisplayName`, comma-separated).*
 

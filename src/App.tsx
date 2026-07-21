@@ -270,7 +270,7 @@ const App = () => {
   })
 
   const channels = useMemo(() => {
-    const rawChannels = resolveChannels() || 'club.mp3:Club,china.mp3:China,edm.mp3:EDM,jpop.mp3:J-Pop,kpop.mp3:K-Pop,pop.mp3:Pop'
+    const rawChannels = resolveChannels() || 'club.mp3:Club,china.mp3:China,car.mp3:Car,edm.mp3:EDM,jpop.mp3:J-Pop,kpop.mp3:K-Pop,pop.mp3:Pop'
     return rawChannels.split(',').map(item => {
       const parts = item.trim().split(':')
       const mount = parts[0].trim()
